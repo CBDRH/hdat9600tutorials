@@ -3,10 +3,11 @@ Type: Package
 Title: Health Data Analytics: Statistical Modelling I (HDAT9600)
 Version: 0.1.0
 Author: as.person(c(
-    " Tim Churches" <tim.churches@inghaminstitute.org.au> [aut]", 
+    "Tim Churches" <tim.churches@inghaminstitute.org.au> [aut]",
+    "Maarit Laaksonen <m.laaksonen@unsw.edu.au> [aut]", 
     "Mark Hanly <m.hanly@unsw.edu.au> [aut]", 
     "Sanja Lujic <s.lujic@unsw.edu.au> [aut]",
-    "Andre Blance <a.blance@student.unsw.edu.au> [aut]",
+    "Andrew Blance <a.blance@student.unsw.edu.au> [aut]",
     "UNSW Sydney [cph]"
   ))
 Maintainer: The package maintainer <m.hanly@unsw.edu.au>
@@ -16,9 +17,28 @@ Description: This package contains interactive learnr tutorials for the course
 License: file LICENSE
 Copyright: UNSW Sydney
 imports: 
-  learnr,
-  shiny,
-  rmarkdown
+    brglm,
+    bshazard,
+    car,
+    dplyr,
+    eha,
+    faraway,
+    ggplot2,
+    Hmisc,
+    kableExtra,
+    knitr,
+    learnr,
+    lmtest,
+    MASS,
+    Matrix,
+    olsrr,
+    rmarkdown,
+    sandwich,
+    shiny,
+    stringi,
+    survminer,
+    tidyr,
+    trafo
 LazyData: true
 Suggests: 
     learnr

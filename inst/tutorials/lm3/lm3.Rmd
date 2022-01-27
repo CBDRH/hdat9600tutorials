@@ -1,0 +1,1094 @@
+---
+title: "HDAT9600 Linear Models 3"
+tutorial:
+  id: "au.edu.unsw.cbdrh.hdat9600.tutorials.lm3"
+output:
+  learnr::tutorial:
+    progressive: false
+    allow_skip: true
+    css: css/tutorials.css
+runtime: shiny_prerendered
+description: "Handling categorical predictors and variable transformations"
+---
+
+![](images/UNSW_2017_Big_Data_landscape.jpg){width="75%"}
+
+```{r setup, include=FALSE, echo=FALSE, message=FALSE, warning=FALSE}
+library(learnr)
+library(ggplot2)
+library(car)
+library(shiny)
+
+knitr::opts_chunk$set(echo = FALSE)
+data(sexab, package="faraway")
+```
+
+```{r server-setup, context="server"}
+# do not use - it interferes with the learnr "Start over" functionality
+# session$onSessionEnded(stopApp)
+```
+
+## Introduction
+
+<span class="copyright">© Copyright 2021 UNSW Sydney. All rights reserved except where otherwise stated.</span>
+
+This chapter is also closely based on the first set text for the HDAT9600 course: Julian J. Faraway. Linear Models using R. 2nd Edition. CRC Press. This text is referred to as _Faraway LMwR_ in these notes. Although you are encouraged to use this text for additional readings, this is not essential --- these notes have abstracted all the salient points from this text for the material covered by this course.
+
+In this chapter we examine how to handle categorical predictor variables, and transformation of both the predictors and the outcome. Finally, we will take a very brief look at generalised least squares (GLS), weighted least squares (WLS), and robust regression.
+
+## 1. Categorical predictors
+
+Predictors that are qualitative and which have no natural ordering --- such as eye, hair or skin colour --- are called _categorical_ predictors, or _factors_. The possible categories of a factor variable are called _levels_ --- for example, we might categorise eye colour as "blue", "green", "brown" and "hazel, and thus we would say eye colour is a factor with four levels. $\textsf{R}$ uses exactly this terminology for the _factor_ class and the `factor()` and `as.factor()` functions to create _factor_ objects, and the `levels=` argument to those functions to define levels.
+
+We often wish to incorporate such factors as predictors in a regression model. We'll start with a simple two-level factor to illustrate how this is done, and then we'll examine the case where there are more than two levels.
+
+## 1.1 Two-level factors as predictors
+
+We use the example provided by Faraway in LMwR, even though it is only somewhat health-related --- it is however an excellent teaching example and an interesting dataset in its own right. The dataset, `sexab`, contains data on 45 women treated at a clinic who reported childhood sexual abuse (`csa`). There were assessed for post-traumatic stress disorder (`ptsd`) and for a history of childhood physical abuse (`cpa`), both using standardised instruments (questionnaires) which resulted in a standardised scale measurement for both variables. The same data were also collected on 31 women who were also being treated at the same clinic at about the same time who did not report any history of childhood sexual abuse. Full details of the study can be found in [Rodriguez _et al_. (1997)](https://www.ncbi.nlm.nih.gov/pubmed/9103734).
+
+### Activity: an initial EDA
+
+The `sexab` dataset is very simple, but nonetheless like any and every dataset it deserves an initial exploratory data analysis. Write some $\textsf{R}$ code below to display the structure of the dataset, first few rows of data in the dataset, and the last few rows.
+
+```{r two-level-factors-a-solution}
+head(sexab)
+tail(sexab)
+str(sexab)
+# or
+dplyr::glimpse(sexab)
+```
+
+```{r two-level-factors-a, echo=TRUE, exercise=TRUE, exercise.lines=20}
+data(sexab, package="faraway")
+
+
+```
+
+Note that `csa` is a variable of class `factor`.
+
+Now display summary statistics for each of the three columns (variables) in the dataset, broken down by the `csa` variable.
+
+```{r two-level-factors-b-solution}
+# using the by() function in base R
+by(sexab, sexab$csa, summary)
+
+# or using the aggregate() function in base R to return a 
+# data frame
+summary_df <- aggregate(sexab, by=list(sexab$csa), FUN=summary)
+print(summary_df)
+```
+
+```{r two-level-factors-b, echo=TRUE, exercise=TRUE, exercise.lines=20}
+
+
+```
+
+Next, plot `ptsd` (y-axis) by `csa` (x-axis) using the code below. Note how the `plot()` function recognises that `csa` is a factor and that `ptsd` is a continuous numeric variable, and thus `plot()` intelligently gives you a Box plot instead of a scatter plot.
+
+```{r two-level-factors-c, echo=TRUE, exercise=TRUE, fig.width=8, fig.height=8, output.width="90%"}
+plot(ptsd ~ csa, data=sexab)
+```
+
+Finally, create a scatter plot of `ptsd` (y-axis) by `cpa` (x-axis), labelling or otherwise signifying each point as belonging to an abused or non-abused case as indicated by the `csa` variable.
+
+```{r two-level-factors-d, echo=TRUE, exercise=TRUE, fig.width=8, fig.height=8, output.width="90%"}
+plot(ptsd ~ cpa, data=sexab, pch=as.character(csa))
+```
+
+From this, we can see that patients in the sexual abuse group have higher levels of PTSD overall. That can be readily tested using a _t_-test:
+
+```{r two-level-factors-e, echo=TRUE, exercise=TRUE, fig.width=8, fig.height=8, output.width="90%"}
+t.test(ptsd ~ csa, data=sexab, var.equal=TRUE)
+```
+
+That shows a clearly statistically-significant difference. Is the equal variance assumption supportable here? At this stage, there is no reason to think that it is not, and by specifying the assumption of equal variance, the _t_-test is comparable to a linear model. 
+
+So how do we fit a linear model using a categorical predictor such as `csa`? More generally, how do we incorporate qualitative predictors within the $y = X\beta + \epsilon$ linear model framework?
+
+## 1.2 Qualitative predictors
+
+To put qualitative predictors into the $y = X\beta + \epsilon$ framework, we need to recode them as _dummy variables_. For a two-level categorical (factor) variable, we just define two dummy variables, $d_1$ and $d_2$ such that:
+
+$$
+d_i = 
+\left \{
+  \begin{array}{cc}
+  0 & \textrm{is not level} \quad i \\
+  1 & \textrm{is level} \quad i \\
+  \end{array}
+\right. 
+$$
+
+We can "hand-code" these dummy variables in $\textsf{R}$ and fit them using a linear model, thus:
+
+```{r two-level-factors-f, echo=TRUE, exercise=TRUE, fig.width=8, fig.height=8, output.width="90%"}
+sexab$d1 <- ifelse(sexab$csa == "Abused", 1,0)
+sexab$d2 <- ifelse(sexab$csa == "NotAbused", 1,0)
+
+salmod <- lm(ptsd ~ d1 + d2, data=sexab)
+summary(salmod)
+```
+
+```{r two-level-factors-set-up, echo=FALSE}
+sexab$d1 <- ifelse(sexab$csa == "Abused", 1,0)
+sexab$d2 <- ifelse(sexab$csa == "NotAbused", 1,0)
+salmod <- lm(ptsd ~ d1 + d2, data=sexab)
+```
+
+Note that we get a warning about singularities. Why? If we look at the X model matrix the problem becomes apparent:
+
+```{r two-level-factors-g, echo=TRUE, exercise=TRUE, exercise.setup="two-level-factors-set-up"}
+model.matrix(salmod)
+```
+
+The sum of the second and third column always equals the first column, thus the matrix is not of full rank and can't be inverted. On reflection, that isn't so surprising since we are using three variables to hold information about just two levels of `csa`.
+
+The solution is to get rid of one of the dummy variable columns, since it is redundant anyway --- if $d_1$ is 1, then $d_2$ must be 0, and _vice versa_. So let's refit the model, but omitting the `d1` variable:
+
+```{r two-level-factors-h, echo=TRUE, exercise=TRUE, exercise.setup="two-level-factors-set-up"}
+salmod2 <- lm(ptsd ~ d2, data=sexab)
+summary(salmod2)
+```
+
+Compare this to the _t_-test we did earlier:
+
+```{r two-level-factors-i, echo=TRUE, exercise=TRUE, exercise.setup="two-level-factors-set-up"}
+t.test(ptsd ~ csa, data=sexab, var.equal=TRUE)
+```
+
+Notice that the intercept value of 11.941 is also the mean of the first group ("Abused") in the _t_-test, while the $\beta$ estimate for `d2` of -7.245 is the same as the difference between the means of the "Abused" and the "NotAbused" groups in the _t_-test (4.6959 - 11.9411 = -7.2452). Notice also that the _t_ value for `d2` in the regression summary is also the same (apart from the sign) as the _t_ value for the _t_-test. Thus we can see the mathematical equivalence between the _t_-test between two means (assuming equal variances), and a linear model fitted with a single two-level factor. In this sense, a traditional _t_-test can be seen as just a [_degenerate case_](https://en.wikipedia.org/wiki/Degeneracy_(mathematics)) of a linear model fitted with factor variables.
+
+However, an alternative approach is to omit the intercept term. We saw (but didn't remark upon) the use of the minus operator in the formula interface to `lm()` (and to many other $\textsf{R}$ functions) in the previous chapter. By itself, the minus sign in an $\textsf{R}$ formula means "omit", just as the plus sign means "include" in such formulae, not "arithmetic addition". And `1` is used to denote the intercept term (since it doesn't correspond to any named variable in the dataset being used). Thus we can use:
+
+```{r two-level-factors-j, echo=TRUE, exercise=TRUE, exercise.setup="two-level-factors-set-up"}
+salmod3 <- lm(ptsd ~ d1 + d2 - 1, data=sexab)
+summary(salmod3)
+```
+
+No singularity this time, and the means for the two groups are shown directly as the parameter estimates for the two groups (`d1=1` and `d2=1`). The downside is that we don't get a _t_-test for the difference between the two groups --- instead, the test in the output corresponds to a null hypothesis that the mean response of each group is zero. Of course, that's not a useful null hypothesis to be testing. Note also that the $R^2$ is incorrectly computed when the intercept is dropped, and this method doesn't generalise to factors with more than two levels. And so, routine practice is to omit the dummy variable for one level of a factor from the model, but retain the intercept term.
+
+Of course, hand-coding dummy variables as we did earlier is tedious, and $\textsf{R}$ is smart enough to just do it automatically for us whenever it encounters a predictor variable which is of class _factor_ (or class _ordered_, which is a sub-class of _factor_) in a formula for a model. Thus we can just type:
+
+```{r two-level-factors-k, echo=TRUE, exercise=TRUE, exercise.setup="two-level-factors-set-up"}
+salmod4 <- lm(ptsd ~ csa, data=sexab)
+summary(salmod4)
+```
+
+and we get the same results as we got from:
+
+`salmod2 <- lm(ptsd ~ d2, data=sexab)`
+
+### Reference levels
+
+The dummy variables which are created by $\textsf{R}$ from factor variables entered into the model as predictors automatically have one level dropped, to ensure identifiability, as we saw above. The level that is dropped is known as the _reference level_ (sometimes also called the _baseline_ level). 
+
+In the example above, "Abused" is the reference level. Somewhat confusingly, there is no mention of it in the model summary - only the parameter estimate for "NotAbused" (labelled "csaNotAbused" to make it clear which variable it belongs to) is shown. However, the mean for the reference level appears in the intercept parameter estimate (11.941 --- refer back to the _t_-test results above).  The parameter estimate for "NotAbused" is **not** the mean response for that level, but rather the difference from the reference level (which is a much more useful contrast --- the null hypothesis is thus that there is no difference in the mean levels of the outcome `ptsd` for the two levels of `csa`).
+
+Note that the choice of reference level is somewhat arbitrary --- sometimes there is an obvious or natural choice, but in many scenarios, there is no clear choice. In the case of this example, using "NotAbused" as the reference level seems like the obvious and sensible choice, but $\textsf{R}$ has chosen "Abused" as the reference level because it just uses alphabetical order by default.
+
+Fortunately there is a convenient way of fixing this, using the `relevel()` function.
+
+```{r two-level-factors-l, echo=TRUE, exercise=TRUE, exercise.setup="two-level-factors-set-up"}
+# check the ordering of the csa factor variable
+str(sexab$csa)
+
+# change the ordering to make NotAbused as the reference level
+sexab$csa <- relevel(sexab$csa, ref="NotAbused")
+
+# re-check the ordering of the csa factor variable
+str(sexab$csa)
+
+# refit the model
+salmod5 <- lm(ptsd ~ csa, data=sexab)
+summary(salmod5)
+```
+
+OK, that's better! Note that the fitted values and the residuals will be the same whichever level is chosen as the reference, as will the residual standard error and the R^2^ - but the parameterisation of the predictors is different and thus the $\beta$ estimates will be different.
+
+So, we have essentially replicated a _t_-test (at least one that assumes equal variances between groups) using a linear model with a single factor variable as the only predictor. Next we'll look at how factor variables are handled in more complex models.
+
+## 1.3 Both factors and quantitative predictors
+
+We can see from these models that, sadly but not unexpectedly, women who have suffered childhood sexual abuse (`csa`) tend to have higher levels of PTSD (`ptsd`) than those who have not. However, we also saw in the EDA that there appears to be an association between childhood physical abuse (`cpa`)and PTSD levels as well. Thus we really want a model that includes the effects of both `csa` and `cpa` on `ptsd`.
+
+If we step back and generalise that a bit, suppose we have a response _y_, a quantitative predictor _x_ and a two-level factor variable represented by a dummy variable _d_:
+
+
+$$
+d = 
+\left \{
+  \begin{array}{cc}
+  0 & \textrm{reference level} \\
+  1 & \textrm{treatment/intervention/exposure level} \\
+  \end{array}
+\right. 
+$$
+
+There are several possible models we might contemplate fitting to these data:
+
+1.  We assume that the factor variable has no effect and thus we accept the same regression line for both levels of that factor. Such a model would be $y = \beta_0 + \beta_1 x + \epsilon$ or in $\textsf{R}$ as `y ~ x`.
+2.  A factor predictor but not quantitative predictor: $y = \beta_0 + \beta_2 d + \epsilon$ or in $\textsf{R}$ as `y ~ d`
+3.  Separate regression lines for each group with the same slope: $y = \beta_0 + \beta_1 x + \beta_2 d + \epsilon$ or in $\textsf{R}$ as `y ~ x + d`
+4.  Separate regression lines for each group but also with different slopes for each group (Abused vs NotAbused):  $y = \beta_0 + \beta_1 x + \beta_2 d + \beta_3 x.d + \epsilon$ or in $\textsf{R}$ as `y ~ x + d + d:x`. The interaction term is created in the $X$-matrix by element-wise multiplication of _x_ by _d_. However, interpretation of the effect of the factor will also depend on the quantitative predictor, and v-v.
+
+Let's work through this in practice. First we fit a linear model to the `sexab` data set with `ptsd` as the outcome, and `cpa` and `csa` as well as an interaction term for both `csa` and `cpa`, and then we display a summary of the model. 
+
+```{r factors-and-quants-set-up, echo=FALSE}
+sexab$csa <- relevel(sexab$csa, ref="NotAbused")
+salmod_i <- lm(ptsd ~ cpa + csa + cpa:csa, data=sexab)
+```
+
+```{r factors-and-quants-a, exercise=TRUE, echo=TRUE}
+sexab$csa <- relevel(sexab$csa, ref="NotAbused")
+salmod_i <- lm(ptsd ~ cpa + csa + cpa:csa, data=sexab)
+summary(salmod_i)
+```
+
+Also display the $X$-matrix (the model matrix) to show the interaction term coding:
+
+```{r factors-and-quants-b, echo=TRUE, exercise=TRUE, exercise.setup="factors-and-quants-set-up"}
+model.matrix(salmod_i)
+```
+
+Notice that the interaction term `cpa:csaAbused` is the fourth column of the model matrix and that it is the product of the second and third columns.
+
+We can display the fitted regression lines against a scatter plot of the data for this model containing an interaction --- note that we need to display **two** lines, one for each level of the `csa` variable:
+
+```{r factors-and-quants-c, echo=TRUE, exercise=TRUE, exercise.setup="factors-and-quants-set-up", fig.width=8, fig.height=8, output.width="90%"}
+plot(ptsd ~ cpa, data=sexab, pch=as.numeric(csa))
+# beta hats
+bh <- coef(salmod_i)
+abline(bh["(Intercept)"], bh["cpa"])
+abline(bh["(Intercept)"] + bh["csaAbused"], bh["cpa"] + bh["cpa:csaAbused"], lty=2)
+```
+
+The solid line shows the fitted values where `csa`=`NotAbused`, whereas the dotted line show the fitted values for `csa`=`Abused`. The slope of the two lines is different due to the interaction term `cpa*csa` in the model --- that means that `cpa` has a slightly different effect depending on whether `csa` equals `NotAbused` or `Abused`.
+
+However, the interaction term in the model, `cpa*csa` (displayed as "cpa:csaAbused" in the model summary) is not even close to being statistically significant, and thus it is reasonable to simplify the model by removing it (but be sure to check the effect on the R^2^):
+
+```{r factors-and-quants-d, echo=TRUE, exercise=TRUE, exercise.setup="factors-and-quants-set-up", fig.width=8, fig.height=8, output.width="90%"}
+# fit model without the interaction term
+salmod_ni <- lm(ptsd ~ cpa + csa, data=sexab)
+
+# display the model summary
+summary(salmod_ni)
+
+plot(ptsd ~ cpa, data=sexab, pch=as.numeric(csa))
+# beta hats
+bh <- coef(salmod_ni)
+abline(bh["(Intercept)"], bh["cpa"])
+abline(bh["(Intercept)"] + bh["csaAbused"], bh["cpa"], lty=2)
+```
+
+The slope of both lines is the same, 0.551, but the `csaAbused` line is 6.273 higher than the `csaNotAbused` line. The co-efficient for `csa` from the `csa`-only model (which was the same as the _t_-test of mean `ptsd` by `csa`) was 7.245. Thus we can see that simultaneously adjusting for childhood physical abuse (`cpa`) slightly reduces the estimated effect of childhood sexual abuse on the adult PTSD symptom score.
+
+Diagnostics still need to be checked. We'll just look at the residuals:
+
+```{r factors-and-quants-set-up-e, echo=FALSE}
+sexab$csa <- relevel(sexab$csa, ref="NotAbused")
+salmod_ni <- lm(ptsd ~ cpa + csa, data=sexab)
+```
+
+```{r factors-and-quants-e, echo=TRUE, exercise=TRUE, exercise.setup="factors-and-quants-set-up-e", fig.width=8, fig.height=8, output.width="90%"}
+plot(fitted(salmod_ni), residuals(salmod_ni), pch=model.matrix(salmod_ni)[,"csaAbused"], 
+     xlab="Fitted", ylab="residuals")
+```
+
+It's a bit unclear whether there is any heteroscedasticity there - maybe a little? Let's test it.
+
+```{r factors-and-quants-f, echo=TRUE, exercise=TRUE, exercise.setup="factors-and-quants-set-up-e"}
+var.test(residuals(salmod_ni)[model.matrix(salmod_ni)[,"csaAbused"] == 1],
+                   residuals(salmod_ni)[model.matrix(salmod_ni)[,"csaAbused"] != 1])
+bartlett.test(list(residuals(salmod_ni)[model.matrix(salmod_ni)[,"csaAbused"] == 1],
+                   residuals(salmod_ni)[model.matrix(salmod_ni)[,"csaAbused"] != 1]))
+olsrr::ols_test_breusch_pagan(salmod_ni, rhs=TRUE)
+```
+
+So, from that we can see there is, in fact, no evidence of heteroscedasticity with respect to the two `csa` levels.
+
+## 1.4 Centering and interaction terms
+
+Just as a simple example, we'll look at a data set called `whiteside` of a random sample of daily natural gas consumption in a British home over the course of two winters. During the first winter, the home was uninsulated, but before the second winter, insulation had been installed. Apart from a two-level factor variable, `Insul` indicating which winter (before or after insulation was installed), the only other two variables are the outside temperature on that day (`Temp`) and the outcome (response) variable, `Gas`, which is the amount of gas used on that day.
+
+We can plot the data, separately for before and after insulation was installed, and even fit separate linear models to each of the two levels (before and after insulation) in the data, using the `ggplot2` package:
+
+```{r centering-set-up, echo=FALSE, exercise=FALSE, message=FALSE, warning=FALSE}
+data(whiteside, package="MASS")
+library(ggplot2)
+```
+
+```{r centering-a, echo=TRUE, exercise=TRUE, exercise.setup="centering-set-up", fig.width=8, fig.height=8, output.width="90%", message=FALSE, warning=FALSE}
+# load the data
+data(whiteside, package="MASS")
+
+# load the ggplot2 library
+library(ggplot2)
+
+# make the plot
+ggplot(aes(x=Temp, y=Gas), data=whiteside) + geom_point() + facet_grid(. ~ Insul) + geom_smooth(method="lm")
+```
+
+Clearly, less gas was used after the insulation was installed, but the improvement in gas consumption varies by temperature: more gas is used on cold days, and thus the insulation reduces absolute gas consumption more on cold days.
+
+We can fit a linear model with an interaction term to accommodate this.
+
+```{r centering-b, echo=TRUE, exercise=TRUE, exercise.setup="centering-set-up"}
+gaslmod <- lm(Gas ~ Temp*Insul, data=whiteside)
+summary(gaslmod)
+```
+
+Notice a few things about this: firstly, we have used the `*` operator in the regression formula. The `:` operator in an $\textsf{R}$ formula means "include the interaction between these variables", whereas the `*` operator in a formula means "include these variables and the interactions between them". In general, you should never include an interaction term in a model without also including separately all the variable which participate in that interaction. That's what the `*` operator does, in a formula, and that's why the `Temp` and the `Insul` (as `InsulAfter`) both appear in the model, even though we only specified the interaction term between them using `Temp*Insul`.
+
+<div class="aside">
+
+### Statistical formula notation in $\textsf{R}$
+
+There is a nice introduction to statistical formulas in $\textsf{R}$ by Richard Hahn of Chicago Booth University available [here](https://faculty.chicagobooth.edu/richard.hahn/teaching/formulanotation.pdf).
+
+</div>
+
+From this model, we would predict that gas consumption would fall by 0.3932 for each 1 &deg;C increase in outside temperature, before insulation was installed (note that the coefficient for `Temp` is negative). After installation of insulation, the fall in consumption per degree is 0.3932 - 0.1153 = 0.2779. 
+
+But how do we interpret the other two parameter estimates (`(Intercept)` and `InsulAfter`), since these represent predicted consumption when the temperature is zero. Zero degrees Celsius is right at the lower end of observed temperatures, and thus they don't indicate typical differences. For many datasets, predictor values of zero may be way outside the feasible range for that predictor, and thus the parameter estimate is very hard to interpret.
+
+The solution is to **centre** the temperature by its mean value and then refit the model. This is easy to do --- just subtract the mean temperature:
+
+```{r centering-c, echo=TRUE, exercise=TRUE, exercise.setup="centering-set-up"}
+# let's just see what the mean temperature is
+mean(whiteside$Temp)
+
+# create a new variable to hold the centred temperature
+whiteside$cTemp <- whiteside$Temp - mean(whiteside$Temp)
+
+# refit the model using the centered temperature data
+gaslmod_c <- lm(Gas ~ cTemp*Insul, data=whiteside)
+summary(gaslmod_c)
+```
+
+Now we can say that the average gas consumption at the average temperature before insulation was 4.9368, and 4.9368 - 1.5679 = 3.3689 after insulation was installed. That's much more easily interpreted! Notice that the other two coefficients, for temperature and for the temperature:insulation interaction term, are identical in both models.
+
+Thus, centring is a useful technique to aid the interpretation of parameter estimates in the presence of interaction in the model (it's not needed otherwise).
+
+## 1.5 Factors with more than two levels
+
+Of course, many factors have more than just two levels. If we have a factor with $f$ levels, then we need to create $f - 1$ dummy variables $d_2, \ldots, d_f$ where $d_1$ (level 1) is the _reference level_ and :
+
+$$
+d_i = 
+\left \{
+  \begin{array}{cc}
+  0 & \textrm{is not level} \quad i \\
+  1 & \textrm{is level} \quad i \\
+  \end{array}
+\right. 
+$$
+
+To demonstrate this, we'll use the example provided in Faraway LMwR, using a dataset of the longevity of male fruit flies with respect to their level of sexual activity. We are not suggesting that the results extrapolate to other species, including humans... A total of 125 flies were divided randomly into five groups (identified in the `activity` variable): one group was kept solitary, one group was kept with a single non-mated female each day, the third group was kept with eight non-mated female flies each day, and as controls the fourth  and fifth groups were kept with one or eight already-mated females each day. Males will not mate with already-mated females (Faraway describes these flies as "pregnant" but that may not be the correct term). The thorax length of each male was measured as a covariate, because thorax length is known to effect longevity in fruit flies.  
+
+First we can plot the data. We'll use base $\textsf{R}$ graphics first:
+
+```{r multi-factors-set-up, echo=FALSE, exercise=FALSE, message=FALSE, warning=FALSE}
+# load the data
+data(fruitfly, package="faraway")
+flies_lmod <- lm(longevity ~ thorax*activity, data=fruitfly)
+```
+
+```{r multi-factors-a, echo=TRUE, exercise=TRUE, exercise.setup="multi-factors-set-up", fig.width=8, fig.height=8, output.width="90%", message=FALSE, warning=FALSE}
+# load the data
+data(fruitfly, package="faraway")
+
+# plot it - note the use of unclass() to turn the factor variable
+# back into an integer
+plot(longevity ~ thorax, data=fruitfly, pch=unclass(activity))
+legend(0.63, 100, levels(fruitfly$activity), pch=1:5)
+```
+
+OK, the relationship between thorax length and longevity can clearly be seen, but it is quite hard to discern the effect of the different levels of sexual activity on longevity in that plot. Let's use _ggplot2_ faceting instead:
+
+```{r multi-factors-b, echo=TRUE, exercise=TRUE, exercise.setup="multi-factors-set-up", fig.width=8, fig.height=8, output.width="90%", message=FALSE, warning=FALSE}
+ggplot(aes(x=thorax, y=longevity), data=fruitfly) + geom_point() + facet_wrap(. ~ activity)
+```
+
+That's better! Note that _low_ is the group paired with one unmated female each day, _high_ is the group paired with eight unmated females per day, and _one_ and _many_ are the control groups placed with one or eight already-mated females each day.
+
+Clearly the longevity of the male flies in the _high_ group is quite a lot lower, for any given thorax length, than the other groups, and longevity in the _low_ and _many_ groups are somewhat less.
+
+Now let's fit a model to these data and carefully examine the model summary:
+
+```{r multi-factors-c, echo=TRUE, exercise=TRUE, exercise.setup="multi-factors-set-up"}
+flies_lmod <- lm(longevity ~ thorax*activity, data=fruitfly)
+summary(flies_lmod)
+```
+
+_isolated_ is the (default) reference level for `activity` hence it does not appear in the model summary. 
+
+The fitted regression line (the fitted values) for the reference level of `activity` would thus be `longevity` = -50.242 + 136.127*`thorax`. 
+
+For the _many_ `activity` level, the fitted values would be `longevity` = (-50.242 - 1.139) + (136.127 + 6.548)*`thorax`. 
+
+For the _high_ `activity` level, the fitted regression line would be `longevity` = (-50.242 - 11.038) + (136.1 - 11.127)*`thorax`.
+
+Refer back to the co-efficients in the model summary above and make sure that you understand these calculations.
+
+We can see how $\textsf{R}$ has done the coding of the `activity` dummy variables by examining the model matrix:
+
+```{r multi-factors-d, echo=TRUE, exercise=TRUE, exercise.setup="multi-factors-set-up"}
+# convert the model matrix to a data frame to make it easier to view in the learnr environment
+as.data.frame(model.matrix(flies_lmod))
+```
+
+### Activity
+
+Create four standard diagnostic plots from the fruit fly model and comment on them.
+
+```{r multi-factors-e, echo=TRUE, exercise=TRUE, exercise.setup="multi-factors-set-up", fig.width=8, fig.height=8, output.width="90%", message=FALSE, warning=FALSE}
+# this is the model
+flies_lmod <- lm(longevity ~ thorax*activity, data=fruitfly)
+
+# now write code to create diagnostic plots
+
+```
+
+Now, what we really want to know is whether we can simplify the model. We can't use the default model summary output because it gives four separate _t_-tests for the interaction term, whereas we want just a single test for the interaction term.
+
+The `anova()` function, that we encountered in Chapter 2, does this for us. When it encounters a model with one or more factor variables in it, it performs a _sequential analysis of variance_. It starts with a null model, then adds terms to it in sequence (based on the terms in the full model object that is passed to it), and tests each additional term using an _F_-test. 
+
+Examine the output:
+
+```{r multi-factors-f, echo=TRUE, exercise=TRUE, exercise.setup="multi-factors-set-up"}
+options(scipen=999) # turn off scientific notation for easier reading of p-values
+anova(flies_lmod)
+```
+
+The three rows of this ANOVA table are testing the following hypotheses:
+
+| Null hypothesis         | Alternative hypothesis                    |
+|:------------------------|:------------------------------------------|
+| `y ~ 1`                 | `y ~ thorax`                              |
+| `y ~ thorax`            | `y ~ thorax + activity`                   |
+| `y ~ thorax + activity` | `y ~ thorax + activity + thorax:activity` |
+
+From this we can conclude that the `thorax:activity` interaction term is not statistically significant, so it can safely be omitted from the model. The resulting model will have the same slope for the thorax length to longevity relationship for each of the activity groups. Let's refit the model without the interaction term:
+
+```{r multi-factors-g, echo=TRUE, exercise=TRUE, exercise.setup="multi-factors-set-up"}
+options(scipen=999) # turn off scientific notation for easier reading of p-values
+flies_lmodp <- lm(longevity ~ thorax + activity, data=fruitfly)
+summary(flies_lmodp)
+```
+
+Once again, though, we are in a quandary: some levels of `activity` are highly significant, but not all. Should `activity` be retained? The ANOVA table output above tests `thorax` by itself, and then both `thorax` and `activity`, but not `activity` by itself. We really want to test whether each predictor is significant once the other(s) have been taken into account. There is a `drop1()` function that does this:
+
+```{r multi-factors-h, echo=TRUE, exercise=TRUE, exercise.setup="multi-factors-set-up"}
+options(scipen=999) # turn off scientific notation for easier reading of p-values
+flies_lmodp <- lm(longevity ~ thorax + activity, data=fruitfly)
+drop1(flies_lmodp, test="F")
+```
+
+The `drop1()` function tests each term relative to the full model.
+
+## 1.6 Alternative codings of factors and contrasts
+
+We saw that dropping one level from a factor avoids a singularity in the model matrix, but in fact, there are other ways of avoiding a singularity. We won't go into the maths behind these codings, but $\textsf{R}$ provides some convenient functions to explore the way they work.
+
+### Treatment coding
+
+This is given by:
+
+```{r multi-factors-i, echo=TRUE, exercise=FALSE}
+contr.treatment(4)
+```
+
+The columns represent the dummy variable encoding, and the rows represent the factor level. So, level 1 is treated as the reference or standard level to which all other levels are compared. The parameter estimate for each dummy variable then represents the difference in effect between the given level and the first, reference level. Treatment coding is the default in $\textsf{R}$ and thus that's what we have seen so far.
+
+### Helmert coding
+
+```{r multi-factors-j, echo=TRUE, exercise=FALSE}
+contr.helmert(4)
+```
+
+If there are equal numbers of observations in each level (that is, a balanced design or experiment or trial), then this encoding ensures that the dummy variables are _orthogonal_ to each other and to the intercept. However, the coding makes interpretation harder.
+
+### Sum coding
+
+```{r multi-factors-k, echo=TRUE, exercise=FALSE}
+contr.sum(4)
+```
+
+This coding is sometimes useful when there is no natural reference level.
+
+### SAS coding
+
+Most SAS procedures use the last (highest) level of a factor as the default reference level (the opposite of what $\textsf{R}$ does). 
+
+```{r multi-factors-k2, echo=TRUE, exercise=FALSE}
+contr.SAS(4)
+```
+
+This coding is sometimes useful when there is no natural reference level.
+
+### Applying different coding schemes
+
+We can apply one of these alternative coding schemes using the `contrasts()` function to set the coding for a factor.
+
+Let's look at what `contrasts()` returns using the `activity` factor:
+
+```{r multi-factors-l, echo=TRUE, exercise=TRUE, exercise.setup="multi-factors-set-up"}
+contrasts(fruitfly$activity)
+```
+
+Now we can use `contrasts()` to specify a different coding:
+
+```{r multi-factors-m, echo=TRUE, exercise=TRUE, exercise.setup="multi-factors-set-up"}
+contrasts(fruitfly$activity) <- contr.sum(5)
+flies_lmodp <- lm(longevity ~ thorax + activity, data=fruitfly)
+summary(flies_lmodp)
+```
+
+## 1.7 ANOVA terminology 
+
+Linear models with **only** categorical variables have traditionally been called _analysis of variance_ or ANOVA problems --- the idea was to partition the overall variance in the outcome into components due to each of the categorical factors, plus the error.
+
+The problem with this traditional approach to ANOVA problems is that an increasingly complex and specialised set of formulae are needed for each model configuration, whereas taking a regression approach as we have been doing so far is completely general and requires no new methods (apart from dummy variable encoding and contrasts) to accommodate it. Nonetheless, it is a good idea to be aware of some still often-used terminology relating to ANOVA problems.
+
+In ANOVA problems, predictors are always qualitative and are called _factors_, with _levels_. OK, no problem. However, the regression parameters ($\beta$ estimates) are called the _effects_. These are then divided into _fixed-effects_ models --- which means that the $\beta$ parameters are considered unknown (and hence must be estimated) but are otherwise fixed across all cases or subjects, as opposed to _random-effects_ models, in which the the $\beta$ estimates themselves can vary between individuals or across groups, and thus the aim is to estimate the distribution of each of those parameters, rather than just the best estimate of a fixed parameter (as in a _fixed-effects_ model). _Mixed-effects_ models incorporate both _fixed_ and _random_ effects.
+
+Unfortunately, the terms _fixed_ and _random_ effects are used in different ways by different authors. The noted statistician Andrew Gelman has written [a commentary on the issue which is recommended reading](http://andrewgelman.com/2005/01/25/why_i_dont_use/).
+
+Mixed models are examined more in the context of multilevel models in the HDAT9700 Health Data Analytics: Statistical Modelling II course.
+
+## 2. Transformations
+
+Transformation of either the outcome (response) or the predictor variables can be used to improve the model fit (for instance when there is a non-linear relationship between predictors and the outcome), or to help correct or ameliorate violations of model assumptions, such as non-constant error variance. Remember, linear models are linear because the $\beta$ parameters must appear in the model equation as linear terms. The predictor variables, however, do **not** need to appear in the model as linear terms, and thus can be quadratic or higher polynomials, or they can be logarithmic or other transformations of the original predictor variable values.
+
+## 2.1 Transforming the outcome variable
+
+Suppose that you want to fit a simple (single predictor) linear regression model to the logarithm of an outcome (response) variable
+
+$$
+\textrm{log}(y) = \beta_0 + \beta_1x + \epsilon
+$$
+
+We can convert this model back to the original scale of the outcome by exponentiation:
+
+$$
+y = \textrm{exp}(\beta_0) \cdot \textrm{exp}(\beta_1 x) \cdot \textrm{exp}(\epsilon)
+$$
+
+Thus, the use of a standard linear model with a logged outcome variable requires us to believe that the errors are multiplicative, not additive. That is not such a stretch of the imagination if the errors are quite small, because $\textrm{exp}(\epsilon) \approx 1 + \epsilon$ (try it to prove this to yourself, say `exp(0.1)` in $\textsf{R}$). Nonetheless, if we substitute this we are still left with a model of the form:
+
+$$
+y = \textrm{exp}(\beta_0 + \beta_1 x) + \epsilon
+$$
+
+and OLS methods cannot be used to fit this model. So we are stuck with keeping the outcome in the log scale if we want to use the usual linear model fitting methods.
+
+If we do fit a linear model to a transformed outcome, then we probably still want to express the predictions from this model in the original scale. That is less problematic, and just requires back-transformation.
+
+Thus, for the logged outcome model above, the prediction would be $\textrm{exp}(\widehat{y}_0)$. Similarly, if the prediction confidence interval in the logged scale was $[l, u]$, then the intervals on the untransformed scale would be $[\textrm{exp}(l), \textrm{exp}(u)]$. Note that this interval may not be symmetrical around the point estimate, but that's not a problem.
+
+However, regression parameter estimates also need to be interpreted with respect to the transformed scale. Unfortunately, there is no easy way of back-transforming $\beta$ estimates to values that can be interpreted in the original untransformed scale of the outcome variable. And needless to say, you can't compare parameter estimates for a model fitted to a transformed outcome variable to parameter estimates for an untransformed model.
+
+## 2.2 Box-Cox transformations
+
+In 1964, statisticians Box and Cox proposed a method for finding an optimal transformation on the outcome variable _y_, if one is needed. The Box-Cox method, which only works with positive values of _y_, chooses the transformation to find the best fit for the data. The method transforms the outcome _y_ using a function $g_\lambda(y)$ where the family of functions is:
+
+$$
+g_\lambda(y) = 
+\left \{
+  \begin{array}{cc}
+  \frac{y^\lambda - 1}{\lambda} & \lambda \ne 0 \\
+  \textrm{log}(y) & \lambda = 0 \\
+  \end{array}
+\right. 
+$$
+
+The value of $\lambda$ is chosen via maximum likelihood, using the following log-likelihood, assuming normality of errors:
+
+$$
+L(\lambda) = -\frac{n}{2}\textrm{log}(RSS_\lambda / n) + (\lambda - 1)\sum{\textrm{log}(y_i)}
+$$
+
+where $RSS_\lambda$ is the residual sum of squares when $g_\lambda(y)$ is the outcome variable.
+
+Transforming _y_ like this makes the model much harder to interpret, so it should not be done unless necessary, such as to address non-linearity, heteroscedasticity  or non-normality of the residuals in small data sets (in the last case, where we can't rely on the Central Limit Theorem to make our model inference robust to violations of the normality of errors assumption).
+
+Because $\lambda$ is being estimated, we can derive a confidence interval for it, which can make it easier to choose more readily interpretable values for $\lambda$ such as integer values. Of course, there is a function in the _MASS_ library for $\textsf{R}$ (_MASS_ is one of the default libraries that comes with $\textsf{R}$) which will carry out all these calculations for us: `boxcox()`. Let's use this on a familiar data set, the `gala` Gal&#225;pagos Islands dataset:
+
+```{r boxcox-set-up, echo=FALSE, exercise=FALSE, warning=FALSE, message=FALSE}
+library(MASS)
+data(gala, package="faraway")
+lmod <- lm(Species ~ Area + Elevation + Nearest + Scruz + Adjacent, data=gala)
+bc <- boxcox(lmod, lambda=seq(-0.25, 0.75, by=0.01), plotit=FALSE)
+lambda <- bc$x[which.max(bc$y)]
+lmod_bc <- lm(I((Species^lambda - 1) / lambda) ~ Area + Elevation + Nearest + Scruz + Adjacent, data=gala)
+```
+
+```{r boxcox-a, echo=TRUE, exercise=TRUE, exercise.setup="boxcox-set-up", fig.width=8, fig.height=8, output.width="90%", message=FALSE, warning=FALSE}
+# load the MASS library
+library(MASS)
+
+# fit the "full" model to the gala data
+lmod <- lm(Species ~ Area + Elevation + Nearest + Scruz + Adjacent, data=gala)
+
+# calculate the optimal Box-Cox transformation for the model and the data
+# notice that it draws a plot as a side-effect
+bc <- boxcox(lmod, plotit=TRUE)
+```
+
+We can zoom in on the range of $\lambda$ values of interest like this:
+
+```{r boxcox-b, echo=TRUE, exercise=TRUE, exercise.setup="boxcox-set-up", fig.width=8, fig.height=8, output.width="90%", message=FALSE, warning=FALSE}
+boxcox(lmod, lambda=seq(-0.25, 0.75, by=0.01), plotit=TRUE)
+```
+
+If we examine the structure of the returned Box-Cox object, we see:
+
+```{r boxcox-c, echo=TRUE, exercise=TRUE, exercise.setup="boxcox-set-up", fig.width=8, fig.height=8, output.width="90%", message=FALSE, warning=FALSE}
+str(bc)
+bc
+```
+
+and so we can pick off the optimal value for lambda like this:
+
+```{r boxcox-d, echo=TRUE, exercise=TRUE, exercise.setup="boxcox-set-up", fig.width=8, fig.height=8, output.width="90%", message=FALSE, warning=FALSE}
+(lambda <- bc$x[which.max(bc$y)])
+```
+
+We can use that value, but notice that it is quite close to 0.333333, which would be a cube-root transformation, and thus it is perfectly reasonable to use 0.33333 as the value for lambda instead, or even 0.5 (a square-root transformation).
+
+Let's just use the optimal lambda, and re-fit the model using it to transform _y_, and compare the resulting model with the original, untransformed model:
+
+```{r boxcox-e, echo=TRUE, exercise=TRUE, exercise.setup="boxcox-set-up", fig.width=8, fig.height=8, output.width="90%", message=FALSE, warning=FALSE}
+# re-fit using Box-Cox transformation
+# note use of I() to evaluate arithmetic inside the formula
+lmod_bc <- lm(I((Species^lambda - 1) / lambda) ~ Area + Elevation + Nearest + Scruz + Adjacent, data=gala)
+
+# transformed model
+summary(lmod_bc)
+
+# untransformed model
+summary(lmod)
+```
+
+OK, so, apart from the changed parameter estimates, not much is different, and if anything, the model fit with the Box-Cox transformation is slightly worse, although the RSE (sigma) is much smaller. So why do it? Let's look at the residuals versus the fitted values for the two models:
+
+```{r boxcox-f, echo=TRUE, exercise=TRUE, exercise.setup="boxcox-set-up", fig.width=8, fig.height=8, output.width="90%", message=FALSE, warning=FALSE}
+# residuals versus fitted plots for untransformed model and 
+# Box-Cox transformed model
+# note use of the which= argument to choose which of the standard regression
+# plots we want
+plot(lmod, which=1, caption="Untransformed outcome variable")
+plot(lmod_bc, which=1, caption="Box-Cox transformed outcome variable")
+```
+
+It looks like the transformation may have improved the apparent heteroscedasticity of the residuals. What does the Breusch-Pagan test say?
+
+```{r boxcox-g, echo=TRUE, exercise=TRUE, exercise.setup="boxcox-set-up", fig.width=8, fig.height=8, output.width="90%", message=FALSE, warning=FALSE}
+# Breusch-Pagan test from olsrr library
+olsrr::ols_test_breusch_pagan(lmod, rhs=TRUE)
+olsrr::ols_test_breusch_pagan(lmod_bc, rhs=TRUE)
+```
+
+Thus, we have fixed a violated OLS assumption, at the expense of making our model much harder to interpret.
+
+Note that Box-Cox transformations are not the only useful transformations for the outcome variable. Tukey's ladder-of-powers transformation is sometimes used to render a distribution more normal, and the log transformation is also very useful (implemented with the `logtrans()` function, also in the _MASS_ library). 
+
+## 2.3 Outcome transformations on steroids with _trafo_
+
+A relatively new $\textsf{R}$ package called [_trafo_](https://cran.r-project.org/web/packages/trafo/index.html) makes the task of finding useful or optimal transformations of the outcome variable for linear models a lot easier. It implements functions for many different types of transforms. Full details can be found in the [package documentation](https://cran.r-project.org/web/packages/trafo/trafo.pdf) and in the [package vignette](https://cran.r-project.org/web/packages/trafo/vignettes/vignette_trafo.pdf), but here are a few examples of its use with the now familiar `gala` dataset.
+
+
+```{r trafo-set-up, echo=FALSE, exercise=FALSE, message=FALSE, warning=FALSE}
+library(trafo)
+data(gala, package="faraway")
+lmod <- lm(Species ~ Area + Elevation + Nearest + Scruz + Adjacent, data=gala)
+```
+
+First we'll fit an untransformed linear model, and then check its assumptions with the `assumptions()` function the _trafo_ package.
+
+```{r trafo-a, echo=TRUE, exercise=TRUE, exercise.setup="trafo-set-up", fig.width=8, fig.height=8, output.width="90%", message=FALSE, warning=FALSE}
+# load the trafo library
+library(trafo)
+
+# fit the "full" model to the gala data
+lmod <- lm(Species ~ Area + Elevation + Nearest + Scruz + Adjacent, data=gala)
+
+# check assumptions
+assumptions(lmod)
+```
+
+Wow! That's a lot of useful output! The first table compares the effect of many different transformations (each with optimally-chosen parameters) on the normality of the residuals, and the second table does the same for homoscedastcity of the residuals. This allows the analyst to more easily choose a transformation, or set of candidate transformations, that best corrects violations of the normality and constant variance assumption. You can see that most, but not all, of the transformations help with both these things.
+
+The tables are followed by a set of matrix scatterplots which show the effect of each of the different transformation types on the linearity of the relationship between  `Species` (the outcome) and each of the predictor variables (compare the first column of the scatterplot matrix for each transformation --- the rest of the scatterplot matrix is the same in each chart). It looks like most of the transformations help with linearisation of the `Species` to `Elevation` relationship, but they don't have much effect on the others.
+
+There are lots of optional arguments to specify how the optimal values for each transformation are chosen.
+
+The `trafo_lm()` function in the package will then fit an optimally-transformed model. It defaults to the Box-Cox transformation, but some other outcome variable transformation, based on the analyst's scrutiny of the output of the `assumptions()` function (above), can easily be specified instead. The `diagnostics()` function  then provides a useful comparison of the transformed and untransformed model.
+
+```{r trafo-b, echo=TRUE, exercise=TRUE, exercise.setup="trafo-set-up", fig.width=8, fig.height=8, output.width="90%", message=FALSE, warning=FALSE}
+
+lmod_trafo <- trafo_lm(lmod)
+
+diagnostics(lmod_trafo)
+```
+
+There's a lot more that the _trafo_ package can do --- see the vignette and manual pages for it for details.
+
+## 2.4 Transforming the predictors
+
+You can also perform Box-Cox or similar transformations on the predictors, again choosing the parameters of the transformation to minimise the RSS, but there are better approaches. We'll (very) briefly look at polynomial transformations, and splines.
+
+### Segmented and broken-stick regression
+
+It is also possible to fit more than one linear model to different regions or subsets of a data set. These are called _segmented_ models. The problem is that such segmented regression lines may not meet, meaning that the regression becomes discontinuous. A way around that is to define two _basis functions_ which together form a continuous first-order spline basis with a knot-point. These are often called _hockey-stick_ models due to their shape. The _segmented_ package for $\textsf{R}$ is one way of easily fitting such models.
+
+## 2.5 Polynomial transformations
+
+As we have noted several times, only the $\beta$ parameters must enter a linear model equation in a linear fashion. The _X_ predictor values can enter in any manner, and thus we can add polynomial terms for higher powers of some or many predictors. If we consider just a simple regression model, we can add polynomial terms to it like this:
+
+$$
+y = \beta_0 + \beta_1 x + \ldots + \beta_d x^d + \epsilon
+$$
+
+We don't have to believe that such a polynomial reflects some underlying reality or generative process that gives rise to the observed data, but it may. For example, the addition of a quadratic term allows a predictor to have an optimum value, above or below which the outcome becomes worse --- Faraway gives the example of an optimum temperature for say, baking bread. Too hot or too cold an oven will result in a burnt or a doughy loaf of bread. 
+
+There are two strategies that can be used to choose _d_, the maximum order of polynomial to include in the model for a given predictor. One is to just keep adding polynomial terms until the added term is not statistically significant, or we can start with some arbitrarily large value of _d_ and then eliminate non-statistically-significant terms, starting with the highest-order polynomial term. 
+
+```{r polynomials-a, echo=TRUE, message=FALSE, warning=FALSE, exercise=TRUE, exercise.setup="boxcox-set-up"}
+
+data(ozone, package="faraway")
+summary(lm(O3 ~ doy, data=ozone))
+summary(lm(O3 ~ doy + I(doy^2), data=ozone))
+summary(lm(O3 ~ doy + I(doy^2) + I(doy^3), data=ozone))
+summary(lm(O3 ~ doy + I(doy^2) + I(doy^3) + I(doy^4), data=ozone))
+summary(lm(O3 ~ doy + I(doy^2) + I(doy^3) + I(doy^4) + I(doy^5), data=ozone))
+
+```
+
+If you examine the model summaries, you will see that when we add the 5th power polynomial, the parameter estimates lose their statistical significance --- thus we stop at the fourth power.
+
+Let's see what effect that transformation has had.
+```{r poly-set-up, exercise=FALSE, echo=FALSE}
+data(ozone, package="faraway")
+O3lmod <- lm(O3 ~ doy, data=ozone)
+O3lmod_poly4 <- lm(O3 ~ doy + I(doy^2) + I(doy^3) + I(doy^4), data=ozone)
+O3lmod_orthpoly4 <- lm(O3 ~ poly(doy, 4), data=ozone)
+```
+
+```{r polynomials-b, echo=TRUE, exercise=TRUE, exercise.setup="poly-set-up", fig.width=8, fig.height=8, output.width="90%", message=FALSE, warning=FALSE}
+data(ozone, package="faraway")
+O3lmod <- lm(O3 ~ doy, data=ozone)
+O3lmod_poly4 <- lm(O3 ~ doy + I(doy^2) + I(doy^3) + I(doy^4), data=ozone)
+
+plot(O3lmod, which=1, caption="Untransformed doy")
+plot(O3lmod_poly4, which=1, caption="4th degree polynomials doy")
+```
+
+As you can see, the effect of using the up-to-4th degree polynomial transformation on the day-of-year variable has been to correct substantial non-linearity in the residuals (and hence in the relationship between `doy` and `O3`), but it hasn't fixed the non-constant variance (and in fact, may have made it worse...). As always, there's no free lunch and no silver bullet.
+
+Note that it is a bad idea to not include all the lower order polynomial terms in a model --- that is, if a fourth-order polynomial transformation is included, then the first, second and third-order polynomial transformations should also be included in the model.
+
+There's an easier way to specify such polynomial transformations, using the `poly()` function in $\textsf{R}$. This adds _orthogonal polynomials_ to the model. Orthogonal polynomials have the form:
+
+$$
+\begin{align}
+z_1 & = a_1 + b_1x \\
+z_2 & = a_2 + b_2 x + c_2 x^2 \\
+z_3 & = a_3 + b_3 x + c_3 x^2 + d_3 x^3 
+\end{align}
+$$
+
+where the co-efficients $a, b, c, \ldots$ are chosen so that $z_i^Tz_j = 0$ when $i \ne j$. These expressions $z$ are called _orthogonal polynomials_ because they avoid the partial collinearity inherent in just plain polynomials, and they thus improve the numerical stability of OLS estimates fitted to models which contain them. The `poly()` function constructs them automatically within a regression formula. 
+
+We can see the collinearity problem with just "raw" polynomials by plotting them for an _x_ variable in the range -1 to 1. The plot on the left below uses the `raw=TRUE` argument to the `poly()` function to return just x^2^, x^3^, x^4^ and x^5^. The plot on the right uses almost the same code, but with `raw=FALSE` (the default), so that orthogonal polynomials are returned by `poly()`.
+
+```{r polynomials-c, echo=TRUE, exercise=TRUE, exercise.setup="poly-set-up", fig.width=8, fig.height=8, output.width="90%", message=FALSE, warning=FALSE, exercise.lines=21}
+# create an x variable from -1 to 1
+x <- seq(-1, 1, length=100)
+
+par(mfrow=c(1,2))
+
+#plot successively higher powers of x versus x
+plot(x, poly(x, 5, raw=TRUE)[,1], type="l", col="black", main="Raw polynomials")
+lines(x, poly(x, 5, raw=TRUE)[,2], col="blue") 
+lines(x, poly(x, 5, raw=TRUE)[,3], col="red")
+lines(x, poly(x, 5, raw=TRUE)[,4], col="orange")
+lines(x, poly(x, 5, raw=TRUE)[,5], col="cyan")
+
+#plot successively higher orthogonal polynomial powers of x versus x
+plot(x, poly(x, 5)[,1], type="l", col="black", main="Orthogonal polynomials")
+lines(x, poly(x, 5)[,2], col="blue") 
+lines(x, poly(x, 5)[,3], col="red")
+lines(x, poly(x, 5)[,4], col="orange")
+lines(x, poly(x, 5)[,5], col="cyan")
+
+par(mfrow=c(1,1))
+```
+
+Notice the region of collinearity around zero for the raw polynomials - that can cause numerical fitting problems.
+
+Thus we can just write:
+
+```{r polynomials-d, echo=TRUE, exercise=TRUE, exercise.setup="poly-set-up", fig.width=8, fig.height=8, output.width="90%", message=FALSE, warning=FALSE}
+O3lmod_orthpoly4 <- lm(O3 ~ poly(doy, 4), data=ozone)
+summary(O3lmod_orthpoly4)
+```
+
+And we can see that it has the same or similar beneficial effect on removing non-linearity in the residuals:
+
+```{r polynomials-e, echo=TRUE, exercise=TRUE, exercise.setup="poly-set-up", fig.width=8, fig.height=8, output.width="90%", message=FALSE, warning=FALSE}
+plot(O3lmod, which=1, caption="Untransformed doy")
+plot(O3lmod_poly4, which=1, caption="4th degree raw polynomials doy")
+plot(O3lmod_orthpoly4, which=1, caption="4th degree orthogonal polynomials doy")
+```
+
+And we can see how much better the fit is to the data:
+
+```{r polynomials-f, echo=TRUE, exercise=TRUE, exercise.setup="poly-set-up", fig.width=8, fig.height=8, output.width="90%", message=FALSE, warning=FALSE}
+plot(ozone$doy, ozone$O3)
+lines(ozone$doy, fitted.values(O3lmod))
+lines(ozone$doy, fitted.values(O3lmod_poly4), col="red", lwd=5)
+lines(ozone$doy, fitted.values(O3lmod_orthpoly4), col="cyan", lty=3, lwd=2.5)
+```
+
+Note that the curved line for the raw (in red) and orthogonal (in dashed cyan) model fitted values lie exactly on top of each other.
+
+Note that you can also use the `polym()` function to define polynomials with more than one variable. Models that use these are called _response surface_ models.
+
+However, the price to pay for such use of polynomial terms is the extreme difficulty in interpreting the $\beta$ estimates for the transformed model --- they no longer have any meaning which is directly understandable to humans, and thus the primary use of such a model is for prediction. And of course, you need to bear the _bias-variance_ trade-off in mind --- it is easy to fall into the trap of _over-fitting_.
+
+We'll also look at a variant of polynomials, called _multiple fractional polynomials_ in the content of the section covering generalised linear models.
+
+## 2.6 Spline transformations
+
+Splines, more formally known as _B-spline basis functions_, can be used to fit models to data with highly non-linear relationships for which polynomial transformations or segmented regression models may not be adequate.
+
+We'll use some synthetic data so that we know exactly what form the model should take. Suppose the true model is:
+
+$$
+y = \textrm{sin} (2 \pi x^3)^3 + \epsilon \quad \textrm{where} \quad \epsilon \thicksim N(0, (0.1)^2)
+$$
+
+So, first we generate those data in $\textsf{R}$ and plot them (the underlying generative model $\textrm{sin} (2 \pi x^3)^3$ is shown by the dashed line):
+
+```{r splines-set-up, echo=FALSE, exercise=FALSE}
+funky <- function(x) { sin(2 * pi * x^3)^3 }
+x <- seq(0, 1, by=0.01)
+y <- funky(x) + 0.1*rnorm(length(x))
+```
+
+```{r splines-a, echo=TRUE, exercise=TRUE, exercise.setup="splines-set-up", fig.width=8, fig.height=8, output.width="90%", message=FALSE, warning=FALSE}
+funky <- function(x) { sin(2 * pi * x^3)^3 }
+x <- seq(0, 1, by=0.01)
+y <- funky(x) + 0.1*rnorm(length(x))
+matplot(x, cbind(y, funky(x)), type="pl", ylab="y", pch=20, ltyp=1, col=1)
+```
+
+First let's try orthogonal polynomial bases (transformations) of order 4 and 12 to fit these data:
+
+```{r splines-b, echo=TRUE, exercise=TRUE, exercise.setup="splines-set-up", fig.width=8, fig.height=8, output.width="90%", message=FALSE, warning=FALSE}
+g4 <- lm(y ~ poly(x, 4))
+g12 <- lm(y ~ poly(x, 12))
+matplot(x, cbind(y, fitted(g4), fitted(g12)), type="pll", ylab="y", pch=20, ltyp=c(1,2), col=1)
+```
+
+We can see that the 4th order polynomial doesn't fit the data at all well, and although the 12th-order polynomial is a much better fit, it still misses the inflection point at about _x_=0.8 and overall is too wiggly for small values of _x_. Can we do better with B-spines?
+
+A discussion of the nature of B-splines is beyond the scope of these notes. It suffices to say that we can use the _splines_ package in $\textsf{R}$ to create such B-spline transformations. To do so, we need to specify the number and points at which we want _knots_ in the spline --- knots are points of inflection or curvature in a spline.
+
+```{r splines-c, echo=TRUE, exercise=TRUE, exercise.setup="splines-set-up", fig.width=8, fig.height=8, output.width="90%", message=FALSE, warning=FALSE, exercise.lines=21}
+# load the library
+library(splines)
+
+# define the 12 knot points
+knots <- c(0, 0, 0, 0, 0.2, 0.4, 0.5, 0.6, 0.7, 0.8, 0.85, 0.9, 1,1,1,1)
+
+# transform x into a spline
+bx <- splineDesign(knots, x)
+
+# examine what bx looks like - it's a matrix
+bx
+
+# plot x versus the spline-transformed version of x
+matplot(x, bx, type="l", col=1)
+
+# fit the model with the spline
+splinelmod <- lm(y ~ bx - 1)
+
+# plot the data, the spline model, and the underlying generative function
+matplot(x, cbind(y, fitted(splinelmod), funky(x)), type="pll", ylab="y", pch=20, ltyp=c(1,2,3), col=c(1,1,3))
+```
+
+As can be seen, the B-spline model is a very close approximation to the underlying generative model! However, each spline knot uses up a degree-of-freedom, and thus we "burnt" 11 degrees-of-freedom there. Of course, if we have enough data, that isn't an issue. 
+
+We can also use smoothing splines to directly fit the data --- we won't go into too much detail about these, but here is an example:
+
+```{r splines-d, echo=TRUE, exercise=TRUE, exercise.setup="splines-set-up", fig.width=8, fig.height=8, output.width="90%", message=FALSE, warning=FALSE}
+ssf <- smooth.spline(x, y)
+matplot(x, cbind(y, ssf$y), type="pl", ylab="y", ltyp=1, pch=20, col=1)
+```
+
+That fits the data well but is arguably too wiggly.
+
+
+## 2.7 Additive models
+
+The problem in practice when searching for useful transformations of predictors in linear models with multiple predictors is that any change in the transformation of one predictor will also affect the parameter estimates of all the others, and thus we may end up in an endless (human, not programming) loop of adjusting one transformation of a variable, then adjusting another transformation for another predictor, and so on.
+
+There are, however, a class of models that are more general than the linear models we have been using which can be used to simultaneously choose the optimal transformations: the _generalised additive model_. It takes the form:
+
+$$
+y = \alpha + f_1(X_1) + f_2(X_2) + \ldots + f_p(X_p) + \epsilon
+$$
+
+Thus, the familiar linear terms for the form $\beta_i X_i$ have been replaced with more flexible functional forms $f_i (X_i)$. The `gam()` function in the _mgcv_ package can be used to fit such a model, with the functions $f_i(X_i)$ being smoothing splines with the smoothing parameters computed automatically using cross-validation.
+
+We can fit a GAM to the familiar `ozone` data. The `plot()` function will display the spline transformation that has been used for each of the predictor variables. Note the helpful "rug" plot of values along the x-axis (use the `rug()` function to add these to base $\textsf{R}$ plots, or `geom_rug()` to add them to _ggplot2_ plots).
+
+```{r splines-e, echo=TRUE, exercise=TRUE, exercise.setup="splines-set-up", fig.width=8, fig.height=8, output.width="90%", message=FALSE, warning=FALSE}
+# load the library
+library(mgcv)
+
+# load the data
+data(ozone, package="faraway")
+
+# fit a generalised additive model with splines on each
+# predictor
+o3gamod <- gam(O3 ~ s(vh) + s(wind) + s(humidity) + s(temp) + s(ibh) + s(dpg) + s(ibt) + s(vis), data=ozone)
+
+# display the spline transformations chosen for each predictor
+plot(o3gamod)
+
+# display the model fit summary
+summary(o3gamod)
+```
+
+<div class="aside">
+
+### Cross-validation for linear models
+
+Of course, it is very easy to go too far, and use transformations such as polynomials and splines to create a model which fits one particular dataset very precisely, but which doesn't generalise very well to other data sets --- in other words, it is easy to overfit the model. Statistics texts may mention this, but they don't spend much time on it, and rarely mention cross-validation and other methods that are routinely used in _machine learning_ practice to avoid or reduce overfitting. Likewise, very few published population health or clinical epidemiological analyses consider the problem of overfitting, unless they are focussing on predictive models only, and even then many ignore the issue.
+
+In $\textsf{R}$, there is a `cv.lm()` function in the _DAAG_ package  which implements _k_-fold cross-validation for linear models, but a better approach is to use the excellent _caret_ package which implements many, many different types of machine learning methods in a generalised cross-validation framework. Naturally, linear regression is one of those machine learning methods.
+
+</div>
+
+## 3. Erroneous Errors
+
+As we has seen, for OLS linear models there is an assumption that the error $\epsilon$ is independent and identically distributed (i.i.d.), and that the error is approximately normally distributed so that we can carry out statistical inference on the parameter estimates in the usual way. 
+
+Luckily, there are remedies for situations in which these assumptions are violated. In the next few sections, we will very briefly look at:
+
+* _generalised least squares_ (GLS) regression, which can be used when the errors are dependent
+* _weighted least squares_ (WLS) regression, which can be used when the errors are independent but not identically distributed
+* _robust regression_, which is useful when the errors are not normally distributed
+
+## 3.1 Generalised Least Squares
+
+The assumption for OLS regression has been $\textrm{var} \, \epsilon = \sigma^2 I$. But if we suspect that the errors have non-constant variance or are correlated, then we could substitute $\textrm{var} \, \epsilon = \sigma^2 \Sigma$, where $\sigma^2$ is unknown as in OLS regression, but the matrix $\Sigma$ is known --- that is, we know (or make some guesses about) the correlation  and relative variance between the errors, but we don't know the absolute variance. Through some mathematical manipulation we can reduce the fitting of such a model to an OLS regression problem, provided we can specify or provide a good estimate of $\Sigma$. Of course, supplying $\Sigma$ is the main problem with GLS regression, but for some types of data we can make some educated guesses and/or derive clues from the data itself.
+
+We'll consider a historical climate dataset which contains recorded Northern Hemisphere average temperatures back to the 1850s (the outcome variable), and tree ring growth data from numerous sites around the world going back 1000 years (the predictors). The idea is to fit a model to the tree ring growth data for the years back to the 1850s, and then use that to predict temperatures in centuries prior to that from the tree ring data.
+
+We can fit a model and examine the residuals in the usual way as we saw in Chapter 3. Note that the outcome variable `nhtemp` is completely missing prior to the year 1856 in this dataset --- it is those missing values which we are trying to predict. By default, the `lm()` function automatically omits observations (rows of data) with missing outcome or predictor variables, and thus the following code is effectively fitting a model just to those rows of data from 1856 to the present:
+
+```{r gls-set-up, echo=FALSE, exercise=FALSE}
+data(globwarm, package="faraway")
+nhtemp_lmod <- lm(nhtemp ~ wusa + jasper + westgreen + chesapeake + tornetrask + urals + mongolia + tasman, data=globwarm)
+n <- length(residuals(nhtemp_lmod))
+```
+
+```{r gls-a, echo=TRUE, exercise=TRUE, exercise.setup="gls-set-up", fig.width=8, fig.height=8, output.width="90%", message=FALSE, warning=FALSE}
+# load dataset
+data(globwarm, package="faraway")
+
+# fit linear model
+nhtemp_lmod <- lm(nhtemp ~ wusa + jasper + westgreen + chesapeake + tornetrask + urals + mongolia + tasman, data=globwarm)
+
+# examine the residuals in chronological order
+# note that na.omit() omits all rows with any missing data
+plot(residuals(nhtemp_lmod) ~ year, data=na.omit(globwarm), ylab="Residuals")
+abline(h=0)
+```
+
+As we saw with the ozone data, we see series points in "runs" close to each other, rather than being randomly distributed above and below zero. This suggests serial correlation. We can also plot the residuals against themselves, but lagged by one year.
+
+```{r gls-b, echo=TRUE, exercise=TRUE, exercise.setup="gls-set-up", fig.width=8, fig.height=8, output.width="90%", message=FALSE, warning=FALSE}
+n <- length(residuals(nhtemp_lmod))
+plot(tail(residuals(nhtemp_lmod), n - 1) ~ head(residuals(nhtemp_lmod), n - 1), xlab=expression(hat(epsilon)[i]), ylab=expression(hat(epsilon)[i+1]))
+abline(h=0, v=0, col=grey(0.4))
+```
+
+In this plot we can see quite definite positive correlation between the residuals for each day and the residuals for the day before. If the residuals were independent, we should see no such correlation.
+
+Finally, we can use the Durbin-Watson test to check this:
+
+```{r gls-c, echo=TRUE, exercise=TRUE, exercise.setup="gls-set-up", fig.width=8, fig.height=8, output.width="90%", message=FALSE, warning=FALSE}
+# Durbin-Watson test
+lmtest::dwtest(nhtemp_lmod)
+
+# calculate the actual serial correlation between successive residuals
+cor(tail(residuals(nhtemp_lmod), n - 1), head(residuals(nhtemp_lmod), n - 1))
+```
+
+Such auto-correlation is not unexpected in such data --- the average temperature for one year is more likely to be similar to the average temperature the year before and the year after than it is to the temperature in some random year decades prior or decades later. In other words, climate tends to change slowly but relatively smoothly. A full discussion of how to model auto-correlation is beyond the scope of these notes --- time-series models are covered more in the HDAT9700 Health Data Analytics: Statistical Modelling II course -- but suffice to say that it (the auto-correlation component) can be modelled with something like:
+
+$$
+\epsilon_{i + 1} = \phi \epsilon_i + \delta_i
+$$
+
+where $\delta_i$ is a normally-distributed error with mean zero. This is known as an _AR1_ [autoregressive model](https://en.wikipedia.org/wiki/Autoregressive_model). 
+
+Such a model cannot be fitted using OLS, but it can be fitted using [_restricted maximum likelihood_](https://en.wikipedia.org/wiki/Restricted_maximum_likelihood) (sometimes called _residual maximum likelihood_), which is similar to the maximum likelihood estimation methods we have considered previously, but which ignores so-called _nuisance parameters_. There are several packages that can fit such a model, but the _nlme_ package makes it easiest to use an AR1 autoregressive term as well, so we will use the `gls()` function from that package here, just by way of illustration:
+
+```{r gls-d, echo=TRUE, exercise=TRUE, exercise.setup="gls-set-up", fig.width=8, fig.height=8, output.width="90%", message=FALSE, warning=FALSE}
+# load the nlme package
+library(nlme)
+
+# fit the model with an AR1 auto-regression term for year to accomodate
+# the serial correlation observed in the residuals
+nhtemp_nlme_mod <- gls(nhtemp ~ wusa + jasper + westgreen + chesapeake + 
+                                tornetrask + urals + mongolia + tasman, 
+                       correlation = corAR1(form = ~ year),
+                       data=na.omit(globwarm))
+summary(nhtemp_nlme_mod)
+```
+
+Note that the parameter estimate for _Phi_ reported in the model summary is the $\phi$ parameter in the AR1 model $\epsilon_{i + 1} = \phi \epsilon_i + \delta_i$ above. A value of 0.71 indicates considerable auto-correlation in the predictors, and because the predictions from the model are not perfect, that auto-correlation carries over to auto-correlation in the residuals.
+
+Note also that the model summary prints a correlation matrix for the predictors. This indicates that there is quite a lot of collinearity between the predictors --- that is, tree ring growth in adjacent regions around the world in any given year tend to be somewhat similar to each other.
+
+Compare the model summary above to the OLS model summary for the same data and the same model terms (except for the auto-regressive component):
+
+```{r gls-e, echo=TRUE, exercise=TRUE, exercise.setup="gls-set-up", fig.width=8, fig.height=8, output.width="90%", message=FALSE, warning=FALSE}
+nhtemp_lmod <- lm(nhtemp ~ wusa + jasper + westgreen + chesapeake + tornetrask + urals + mongolia + tasman, data=globwarm)
+summary(nhtemp_lmod)
+```
+
+Note that the parameter estimates are quite similar to the GLS model, but none of the predictors are significant in the GLS model, whereas some of them are in the OLS model. This should not be taken as an indication of no effect of the predictors, but rather that the collinearity between the predictors may be interfering with the inference on the parameter estimates. By contrast, the statistical significance of some of the parameter estimates in the OLS model should now be viewed with some suspicion, as they may reflect the pernicious effects of collinearity as well as dependence in the residuals. The GLS model at least (largely) removes the undesirable effects of the latter and should be preferred for these data. 
+
+<div class="under-the-bonnet">
+
+### Overall statistical significance of a GLS model
+
+A reasonable question is "What is the overall statistical significance of the GLS model?". There is no _p_-value for the overall model provided in the model summary output. The answer is that it **is** possible to calculate overall model significance, but the _fixed effects_ and the correlation term(s) need to be teased apart. Doing so is beyond the scope of these tutorial notes, but a useful example can be found on [StackExchange](https://stats.stackexchange.com/questions/13859/finding-overall-p-value-for-gls-model).
+
+</div>
+
+## 3.2 Weighted least squares
+
+Weighted least squares (WLS) estimation can be used when the errors are uncorrelated, but where they have unequal variance and where the form of that inequality is known --- that is, where there is a known or reasonable model for how the variance of the residuals varies. The model or presumed model for the variance is then used to create a set of weights which are used in the regression. Knowing such a model for the variance might seem unlikely and a "tall order", but sometimes it can be inferred from an examination of the residuals. For example, the errors may be proportional to a predictor, as suggested by a positive relationship in a plot of the absolute residuals against a predictor. In such a case, the weights used would be the reciprocal of the predictor.
+
+For the interested reader, a worked example of WLS regression is given in section 8.2 of Faraway LMwR.
+
+## 3.3 Robust regression
+
+Robust regression methods can be used when the errors are not normally distributed, and in particular when the error distribution has a long tail, because the observations in the long tails may have disproportionate effects on the regression. Of course, we can use the methods covered previously to identify and exclude such influential outliers, but there are also other methods which can be used to penalise (reduce the influence of) outlying observations while still including them in the model fit. Doing so is statistically more efficient, which can be important if the sample size of the data set is small, and we can't afford to "waste" any data, even it contains outliers. A full treatment of robust regression methods such as _M-estimation_ (which includes Huber's method) and _Least Trimmed Squares_ is beyond the scope of these tutorial notes. Again, for the interested reader, more detail can be found in Section 8.4 of faraway LMwR.
+
+## Aspects of linear regression we haven't covered
+
+We have not covered several important aspects of fitting and interpreting linear models, in particular model selection procedures, treatment of missing data, and shrinkage methods such as _principal components analysis_ (PCA), ridge regression and the lasso. These have been omitted from this HDAT9600 course not because they are unimportant, but because they are covered in the HDAT9700 Health Data Analytics: Statistical Modelling II course and/or in the HDAT9500 Health Data Analytics: Introduction to Machine Learning and Data Mining course. For those interested in learning more but not taking or planning to take those courses, there are good introductions to each of these topics in Faraway LMwR, specifically in Chapters 10, 11 and 13.
+
+
+
+
+

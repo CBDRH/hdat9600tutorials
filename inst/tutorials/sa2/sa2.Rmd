@@ -1,0 +1,627 @@
+---
+title: "HDAT9600 Survival analysis 2"
+tutorial:
+  id: "au.edu.unsw.cbdrh.hdat9600.tutorials.sa2"
+fig_width: 6 
+fig_height: 4
+output:
+  learnr::tutorial:
+    progressive: false
+    allow_skip: true
+    css: css/tutorials.css
+runtime: shiny_prerendered
+description: "Continuing survival analysis: semi-parametric and parametric methods"
+---
+
+![](images/UNSW_2017_Big_Data_landscape.jpg){width="75%"}
+
+
+```{r setup, include=FALSE}
+library(learnr)
+knitr::opts_chunk$set(echo = FALSE)
+
+## required packages for examples - note that RMarkdown and learnr are also required.
+libs <- c("eha", "stringi", "bshazard", "survminer")
+missing <- !libs %in% installed.packages()
+if (any(missing)) {
+  install.packages(libs[missing],repos="https://cloud.r-project.org")
+}
+
+library(eha)
+library(stringi)
+library(bshazard)
+library(survminer)
+
+```
+
+```{r prepare-exercises, warning=FALSE}
+data(oldmort)
+
+oldmort$fu_time <- oldmort$exit - oldmort$enter
+oldmort$start <- oldmort$birthdate + oldmort$enter
+oldmort$stop <- oldmort$birthdate + oldmort$exit
+
+deaths <- oldmort[oldmort$event == TRUE,]
+
+cox.sex <- coxph( Surv(enter, exit, event) ~ sex, data = oldmort) 
+cox.mv1 <- coxph( Surv(enter, exit, event) ~ sex + civ + region, data = oldmort) 
+
+oldmort$Y <- Surv(oldmort$enter - 60, oldmort$exit - 60, oldmort$event)
+
+w.mv1 <- phreg(Y ~ sex + civ + region, data = oldmort)
+g.mv1 <- phreg(Y ~ sex + civ + region, data = oldmort, dist = "gompertz")
+
+```
+
+
+## Introduction
+
+<span class="copyright">© Copyright 2021 UNSW Sydney. All rights reserved except where otherwise stated.</span>
+
+<br>
+The chapters in this _Survival Analysis_ section, are based on the textbook "_Event history analysis with R_" by Göran Broström. The book offers multiple practical examples of survival data analysis with R. You are not required to read it, however if you wish to learn more about the topic of survival (time to event) modelling, you are welcome to consult the text. 
+
+This is the second of two chapters that form the survival analysis section.
+
+
+## 3. Semi-parametric methods
+
+The semi-parametric Cox proportional hazards regression model (Cox 1972) is the most commonly used method for analysing survival data. It is called semi-parametric because the model includes both a non-parametric and a parametric component, as we will now illustrate.
+
+
+### **Cox proportional hazards**
+
+In time-to-event regression models, we attempt to estimate parameters that describe the relationship between a set of covariates and event incidence, expressed by the hazard function $h(t)$. Thus, whereas with non-parametric methods we typically examine the survival function, with semi-parametric (and parametric) methods we examine the hazard function. We would like to allow parameters to take on any value, yet still preserve the non-negative nature of the hazard function. This can be achieved by parameterising the hazard function as:
+
+$$h(t|x) = h_0(t)\exp (\beta^T x)$$
+
+where $h_0(t)$ is a baseline hazard, $x = (x_1,x_2,\ldots,x_p)$ is the vector of covariates and $\beta^T = (\beta_1,\beta_2,\ldots,\beta_p)$ the vector of the corresponding regression coefficients that we want to estimate. The baseline hazard describes the dependence of the hazard function on time. It is the value of the hazard function when all covariates are zero, i.e. $x = (0,0,\ldots,0)$; the baseline hazard is thus equivalent to a regression intercept. In this parameterisation, $h(t|x)$ is constrained to be strictly positive, as the exponential function always evaluates to positive, while $\beta$s are allowed to take on any value, and the baseline hazard is assumed non-negative as well. This parameterisation forms the Cox proportional hazards regression model. **It is called the proportional hazards model because the ratio of hazard rates, the hazard ratio (HR), for any two sets of covariates, $x$ and $x^*$  will stay constant over time**:
+
+$$HR = \frac {h(t|x^*)} {h(t|x)} = \frac {h_0(t)\exp (\beta^T x^*)} {h_0(t)\exp (\beta^T x)} = \exp [\beta^T (x^*-x)]$$
+
+Notice that the baseline hazard rate $h_0(t)$ is cancelled out and the HR does not depend on time $t$. One of the great advantages of the Cox model is that *estimating covariate effects does not depend on making assumptions about the form of the baseline hazard function, $h_0(t)$, which can be left unspecified*. This does, however, mean assuming that the covariate effects are constant over time.The proportional hazards assumption is the key assumption in the Cox model and must always be carefully checked.
+	
+The Kaplan-Meier estimator presented previously, made no assumptions about the underlying distribution of the survival times. Thus is termed a non-parametric method. The Cox proportional hazards model makes no assumptions about the baseline hazard (other than that it should be non-negative) and it doesn’t need to be estimated to make inferences about the hazard ratio; thus the baseline hazard is the non-parametric component of the model. The parametric component of the Cox model consists of the covariate vector and the covariates are assumed to have a  *log-linear effect on the hazard function*. Thus, the proportionality constant is determined parametrically.   
+
+## 3.1 Parameter estimation
+
+To be able to interpret Cox's model, the regression coefficients $\beta$ need to be estimated. They are usually estimated by using maximum likelihood estimation methods, which estimate the regression parameters that maximise the probability of observing the given set of survival times. 
+
+Let's say that at the beginning of a given time interval $t_j$ there are $n_j$ individuals still at risk. The probability of observing an individual fail (out of all remaining $n_j$ individuals at risk) is the proportion of that individuals hazard over the sum total of hazard rates of all $n_j$ individuals. For example, if there were two individuals still at risk at time $t_j$, the probability of observing individual 1 fail at time $t_j$ would be:
+
+$$
+\begin{align}
+\Pr(individual=1 \,| \, failure=t_j) &= \frac {h(t_j|x_1)}{h(t_j|x_1)+h(t_j|x_2)} \\
+ & \\
+ &= \frac {\exp (\beta^T x_1)}{\exp (\beta^T x_1)+\exp (\beta^T x_2)}
+\end{align}
+$$
+
+Similarly, we can express the joint probability of n individuals’ failure times as:
+
+$$L( \beta ) = \Pi_{j=1}^n \Bigg[ \frac {\exp (\beta^T x_j)} {\sum_{i \in n_j} \exp (\beta^T x_i)  }\Bigg]^{d_j}$$
+
+where $d_j$ is an indicator variable which takes value 0 if the *j*th item is censored and value 1 if the *j*th item failed. Thus, only event times contribute their own factor to the likelihood. However, both censored and uncensored observations appear in the denominator, where the sum over the risk set includes all individuals $n_j$ who are still at risk at time $t_j$. Because this likelihood eliminates the unknown baseline hazard, it is actually a *partial likelihood* instead a full likelihood, but the $\beta$ have the same distributional properties as those derived from the full likelihood.
+
+
+## 3.2 Fitting Cox PH models
+
+Previously, we plotted and compared the survival functions of males and females in the *old age mortality dataset* and showed that the survival experience differed between the two genders. When we carried out the log-rank test of equality of the survival function, we actually already fitted the Cox proportional hazards regression model as that is what the  [`coxph()`](https://stat.ethz.ch/R-manual/R-devel/library/survival/html/coxph.html) function in the [`survival`](https://cran.r-project.org/web/packages/survival/survival.pdf) package does:
+
+```{r 3_1, exercise=TRUE, exercise.eval=FALSE, exercise.setup = "prepare-exercises"}
+# fitting a simple Cox model with sex as a covariate using coxph
+cox.sex <- coxph( Surv(enter, exit, event) ~ sex, data = oldmort) 
+summary(cox.sex)
+
+```
+
+We see that the output is exactly the same as for the `om.fitbysex2` before.
+
+We see that maximum likelihood estimate of the regression coefficient (coef) for (female) sex is -0.1930 and thus hazard ratio for $\frac {sex=female} {sex=male}$ is exp(-0.1930) = 0.8245. The Wald statistic (z) evaluates whether the $\beta$ of a given covariate is statistically significantly different from 0. It is calculated as the ratio of $\beta$ to its standard error ($z = \frac {\widehat{\beta}} {se(\widehat{\beta})})$. We see that the association between sex and mortality is significant. The _p_-value for the Wald statistic (Pr(>|z|) is 0.0000232 but such small _p_-values are typically denoted as _p_ < 0.001. The output also provides a 95% confidence interval for the HR, 0.754 to 0.9016. So we see that women have about 20% (17.6%) smaller risk of death than men. This applies for ages above 60 because this data set contains only information in that range. Note that by using age as the time scale, we have adjusted for it (but we have not yet adjusted for any other potential confounders).
+
+Negating (flipping) the sign of the coefficient, we obtain the hazard ratio for $\frac {sex=male} {sex=female}$ instead. This is also provided in the output: exp(0.1930) = 1.213. If we want to use a particular category as a reference category in our analyses, we can assign it using the [`relevel()`](https://stat.ethz.ch/R-manual/R-devel/library/stats/html/relevel.html) function.
+
+```{r 3_2, exercise=TRUE, exercise.eval=FALSE, exercise.setup = "prepare-exercises"}
+# reference level can be changed using relevel() function
+oldmort$sex2 <- relevel(oldmort$sex, ref="female")
+cox.sex2 <- coxph( Surv(enter, exit, event) ~ sex2, data = oldmort)
+summary(cox.sex2)
+```
+
+At the end of the output, three alternative tests for overall significance of the model are given;
+
+1. likelihood ratio test (LRT)
+2. Wald test
+3. score (logrank) test.
+
+These methods are asymptotically equivalent, meaning that with large N they will provide similar results. For small N, the LRT is generally preferred.
+
+In the [`eha`](https://cran.r-project.org/web/packages/eha/eha.pdf) package, there is an alternative [`coxreg()`](https://www.rdocumentation.org/packages/eha/versions/2.6.0/topics/coxreg) function for fitting Cox models that allows some extensions to modelling and also produces a slightly different output.
+
+```{r 3_3, exercise=TRUE, exercise.eval=FALSE, exercise.setup = "prepare-exercises"}
+# an alternative way of fitting a Cox model using the coxreg() function
+cox.sex3 <- coxreg( Surv(enter, exit, event) ~ sex, data = oldmort) 
+summary(cox.sex3)
+```
+
+It outputs the likelihood ratio test results only, and also outputs the maximum log likelihood which is useful, for example, for model comparison (covered later in this section). Some functions require output from either the [`coxph()`](https://stat.ethz.ch/R-manual/R-devel/library/survival/html/coxph.html) or the  [`coxreg()`](https://www.rdocumentation.org/packages/eha/versions/2.6.0/topics/coxreg) functions to work.  In the following, we will use either the `coxph()` or `coxreg()` function, depending on what functions we are using them with and what output we’d like to obtain.
+
+## 3.3 Tied event times
+
+Earlier, when outputting the data, we saw that there may have been several events happening at the same time.
+
+```{r 3_4, exercise=TRUE, exercise.eval=FALSE, exercise.setup = "prepare-exercises"}
+
+summary( survfit(cox.sex))
+
+```
+
+See for example the first event time in the output where 3 events occurred at the same time.
+
+We can evaluate the risk set composition and calculate the number of these so-called *tied event times* using the [`risksets()`](https://www.rdocumentation.org/packages/eha/versions/2.5.1/topics/risksets) function in the [`eha`](https://cran.r-project.org/web/packages/eha/eha.pdf) package.
+
+```{r 3_5, exercise=TRUE, exercise.eval=FALSE, exercise.setup = "prepare-exercises"}
+# the object rs is a list with seven components
+# one of them is 'n.event' which counts the number of events in each risk set
+rs <- risksets(Surv(oldmort$exit, oldmort$event))
+# printing a table summarising the number of events in each risk set
+tt <- table(rs$n.event)
+tt
+
+```
+
+From this output we can see that 1648 risk sets have only one event each (no ties), 151 risk sets have two events each, and 7 risk sets have 3 events each.
+
+Tied event times may cause problems (biased estimates) if they occur too frequently. There are a few ways to handle tied data. The so-called exact method considers all possible permutations of the tied event times in each risk set. The main drawback of the exact method is that it becomes very slow if there are a large number of permutations to perform. However, there are a few excellent approximations available. The Efron approximation (Efron 1977) is the *default* method in the [`survival`](https://cran.r-project.org/web/packages/survival/survival.pdf) and [`eha`](https://cran.r-project.org/web/packages/eha/eha.pdf) packages. So all of our analyses so far have already accounted for the tied event times using the Efron approximation.  Another common approximation is the Breslow method (Breslow 1974), which is the default in some statistical software, and is also an available option in the [`survival`](https://cran.r-project.org/web/packages/survival/survival.pdf) and [`eha`](https://cran.r-project.org/web/packages/eha/eha.pdf) packages. The [`coxreg()`](https://www.rdocumentation.org/packages/eha/versions/2.6.0/topics/coxreg) and [`eha`](https://cran.r-project.org/web/packages/eha/eha.pdf) packages, offer a few further options for treating ties.  Namely, the maximum partial likelihood method and the maximum likelihood method. There is no harm in using these approximations in case of no ties; in that case, they will all give identical results.
+
+We now demonstrate the four different methods of treating ties available in [`coxreg()`](https://www.rdocumentation.org/packages/eha/versions/2.6.0/topics/coxreg).
+
+```{r 3_6, exercise=TRUE, exercise.eval=FALSE, exercise.setup = "prepare-exercises"}
+# The four possible ways of treating ties in coxreg()
+
+# Default method (not necessary to specify) = "efron"
+fit.e <- coxreg( Surv(enter, exit, event) ~ sex, data = oldmort,  method = "efron") 
+fit.e 
+
+# Breslow
+fit.b <- coxreg( Surv(enter, exit, event) ~ sex, data = oldmort, method = "breslow")
+fit.b
+
+# The maximum partial likelihood method
+fit.mppl <- coxreg(Surv(enter, exit, event) ~ sex, data = oldmort, method = "mppl")
+fit.mppl
+
+# Maximum likelihood method
+fit.ml <- coxreg(Surv(enter, exit, event) ~ sex, data = oldmort, method = "ml")
+fit.ml
+
+```
+
+As the Efron approximation is the default method, the first output is identical to the `cox.sex3` output above.  However, there are almost no differences in the results between the four methods due to the relatively low number of ties present in this data.
+
+
+## 3.4 Model selection
+
+Previously, we fitted a simple Cox model for determining the effect of gender on the hazard rate. We may however suspect that the hazard rate in the *old age mortality dataset* changes not only with sex but also with other factors, such as civil status (unmarried, married, widower), socio-economic status (farmer, lower, middle, upper), birthplace (parish, remote) or region (Sundsvall town, rural, and industry). Unlike the previously covered non-parametric methods, Cox proportional hazards regression model allows us to assess the effect of both categorical and continuous variables, and to model the effect of multiple variables at once. 
+
+There are different approaches to model selection (i.e. covariate selection) among several different models for describing data. One common approach is to first do a univariable analysis to 'screen out’ potentially significant variables for consideration in subsequent multivariable models (Collett 2003). 
+
+Below we fit univariable Cox models for civil status, socio-economic status, birthplace and region.
+
+```{r 3_7, exercise=TRUE, exercise.eval=FALSE, exercise.setup = "prepare-exercises"}
+# fitting univariable Cox models with civil status, socieconomic status, birthplace and region as covariates
+
+cox.civ <- coxph(Surv(enter, exit, event) ~ civ, data = oldmort) 
+summary(cox.civ)
+
+cox.ses50 <- coxph(Surv(enter, exit, event) ~ ses.50, data = oldmort) 
+summary(cox.ses50)
+
+cox.birthplace <- coxph(Surv(enter, exit, event) ~ birthplace, data = oldmort) 
+summary(cox.birthplace)
+
+cox.region <- coxph(Surv(enter, exit, event) ~ region, data = oldmort) 
+summary(cox.region)
+
+```
+
+From these outputs we see that in addition to sex (analysed previously), civil status and region appear significantly associated with old age mortality, whereas socio-economic status and birthplace do not. Those married or widowed have a lower risk of death compared to those not married. Those living in an industrial region have a higher risk of death compared to those living in Sundsvall town (whereas the difference between rural region and Sundsvall town was not significant).
+
+We then fit a multivariable model including the three significant predictors of sex, civil status, and region.
+
+```{r 3_8, exercise=TRUE, exercise.eval=FALSE, exercise.setup = "prepare-exercises"}
+# fitting multivariable Cox model with sex, civil status and region 
+cox.mv1 <- coxph(Surv(enter, exit, event) ~ sex + civ + region, data = oldmort) 
+summary(cox.mv1)
+
+```
+
+In the multivariable model, all three variables continue to be statistically significantly associated with old age mortality.
+
+For models that are nested, the model fit of "competing" models can be tested using the likelihood ratio test (LRT). Model 1 is nested in Model 2 if the parameters in Model 1 are a subset (or a subspace) of the parameters in Model 2. 
+
+The likelihood ratio test can be calculated as $LRT = abs(L_1-L_2)$ where $L_1$ and $L_2$ refer to the respective $-2logL$ values for the two models compared; thus $LRT = abs(2logL_2-2logL_1)$. As the absolute value of the difference is taken, it doesn’t really matter which model corresponds to $L_1$ and $L_2$. The LRT statistic follows a $\chi^2$ distribution with degrees of freedom equal to the difference in the number of parameters between the two models being compared.
+
+For example, we can compare whether the multivariable model with the three significant variables fits the data better than the multivariable model with all five variables. There is a [`anova.coxph()`](https://stat.ethz.ch/R-manual/R-devel/library/survival/html/anova.coxph.html) function in the [`survival`](https://cran.r-project.org/web/packages/survival/survival.pdf) package that can be used to carry out the LRT test (we just call `anova()` and $\textsf{R}$ is smart enough to work out that we really want `anova.coxph()`):
+
+```{r 3_9, exercise=TRUE, exercise.eval=FALSE, exercise.setup = "prepare-exercises"}
+# fitting multivariable Cox model with sex, civil status and region 
+cox.mv1 <- coxph(Surv(enter, exit, event) ~ sex + civ + region, data = oldmort) 
+summary(cox.mv1)
+
+# fitting multivariable Cox model with sex, civil status, region, socioeconomic status and birthplace
+cox.mv2 <- coxph(Surv(enter, exit, event) ~ sex + civ + region + ses.50 + birthplace, data = oldmort)
+summary(cox.mv2)
+
+print(anova(cox.mv1, cox.mv2))
+
+```
+
+From the output we see that the _p_-value (0.22) is not close to being significant. Hence, we choose the simpler model (Model 1) with only the three significant variables.
+
+We can make further model comparisons to be sure that all these three variables should be retained in the multivariable model. There is a very useful [`drop1()`](https://www.rdocumentation.org/packages/lme4/versions/1.1-17/topics/drop1.merMod) function available in the [`eha`](https://cran.r-project.org/web/packages/eha/eha.pdf) package, also based on the likelihood ratio test.
+
+```{r 3_10, exercise=TRUE, exercise.eval=FALSE, exercise.setup = "prepare-exercises"}
+# fitting multivariable Cox model with sex, civil status and region 
+cox.mv1 <- coxph(Surv(enter, exit, event) ~ sex + civ + region, data = oldmort) 
+print(drop1(cox.mv1, test="Chisq"))
+
+```
+
+In the output, we have performed three likelihood ratio tests for the effect of removing sex, civil status or region from the full model. The _p_-values for all three tests are very small which indicates that all three variables are significant and should be retained in the model.
+
+Akaike's Information Criterion (AIC) can also be used to compare different models. Looking at the likelihood only in the LRT does not account for how many parameters one has used in the model. This is important when we want to ensure parsimony (i.e. choosing the simplest model possible without losing a 'significant' amount of fit to our data). Looking at the AIC allows us to account for parsimony, as it depends not only on the likelihood but also on the number of degrees of freedom (df) used by the model. It is defined as follows $AIC=2k−2logL$, where $k$ is the number of df used and $L$ the (partial) likelihood of the model. The model with lower AIC is the preferred one.
+
+For example in the output above, the AIC is smallest ($27112$) for the model from which none of the three variables was dropped. This AIC was obtained using the formula above: $2*5-2*(-13551)$, with the necessary information available from the last two outputs. The AIC thus indicates that we should choose to maintain all three variables in the model. 
+
+While the AIC and LRT often align in their conclusions, this is not always the case. They can result in different conclusions as the AIC penalises for the parameters added to the model while the LRT doesn't. For example, the maximum log likelihood was larger (i.e. better) for the multivariable model including all five variables fitted previously, than the one including just the three significant variables (-13547 _vs_ -13551). However, the LRT revealed no statistical significant difference between the models and we chose the simpler model anyway. If we calculate the AIC for the 5-variable model, we get AIC = $2*11 – 2*(-13547) = 27116$, i.e. higher (worse) AIC for the 5-variable model.
+
+Choosing between models using LRT or AIC has an information theory grounding whereas some other model selection approaches, such as forward/backward/stepwise selection have no theoretical bases, and such automatic stepwise procedures should be avoided.
+
+
+## 3.5 Model diagnostics
+
+### _Assessing the proportional hazards assumption_
+
+The key assumption in the Cox proportional hazards model is that of proportional hazards (PH). As mentioned before, it is important to check whether this assumption holds.
+
+In its simplest form, this assumption means that the hazards for the groups being compared should be proportional and thus should not cross. A graphical method for exploring the PH assumption is to look at (Nelson-Aalen) cumulative hazard or (Kaplan-Meier) survival plots for each predictor, or plots of log(-log(S(t))) for an easier check, to see if the curves are parallel.
+
+Let's now take a look at an example of how this can be done for sex using the [`plot.survfit()`](https://stat.ethz.ch/R-manual/R-devel/library/survival/html/plot.survfit.html) function in the [`survival`](https://cran.r-project.org/web/packages/survival/survival.pdf) package (as already covered in Section 2)
+
+```{r 3_11, exercise=TRUE, exercise.eval=FALSE, exercise.setup = "prepare-exercises"}
+# estimating the survival curves by sex 
+om.fitbysex <- survfit( Surv(enter, exit, event) ~ sex, data = oldmort) 
+# plots the cumulative hazards
+plot(om.fitbysex, col=c("blue", "red"), xlim=c(60, 100), fun="cumhaz", main = "Nelson-Aalen estimate of cumulative hazard function", xlab = "Age")
+# plots the survival curves
+plot(om.fitbysex, col=c("blue", "red"), xlim=c(60, 100), main = "Kaplan-Meier estimate of survival function", xlab = "Age")
+# plots the log(-log(S(t)))
+plot(om.fitbysex, col=c("blue", "red"), xlim=c(60, 100), fun="cloglog", main = "log(-log(S(t)))", xlab = "Age")
+
+```
+
+From these plots, it appears that the PH assumption holds pretty well from 60 to about 90 years of age.  After 90 years of age, the curves start crossing and the PH assumption may be violated. One reason for this may be that the high-age estimates are based on few observations (most of the individuals in the sample died earlier), so random fluctuations have a large impact in the high ages.
+
+To be more confident, there are statistical tests for assessing the PH assumption. The function [`cox.zph()`](https://stat.ethz.ch/R-manual/R-devel/library/survival/html/cox.zph.html) in the [`survival`](https://cran.r-project.org/web/packages/survival/survival.pdf) package provides a convenient solution for testing the PH assumption for each covariate included in the Cox model. For each covariate, this function correlates the corresponding set of Schoenfeld residuals (scaled by the variance of the coefficient of interest) with time, to test for independence between residuals and time. The Schoenfeld residuals represent the difference between the observed covariate and its expected value for the individuals who failed. Additionally, the [`cox.zph()`](https://stat.ethz.ch/R-manual/R-devel/library/survival/html/cox.zph.html) function performs a global test of the global null hypothesis that proportionality holds for the model as a whole. 
+
+It is also possible to do graphical diagnostics using the function [`ggcoxzph()`](https://www.rdocumentation.org/packages/survminer/versions/0.4.3/topics/ggcoxzph) in the [`survminer`](https://cran.r-project.org/web/packages/survminer/survminer.pdf) package, which produces, for each covariate, graphs of the scaled Schoenfeld residuals against the transformed time. Please note that when not running the code in _learnr_, where the necessary packages have been installed and loaded into the workspace of R automatically, you first need to  install the _survminer_ package (**install.packages(“survminer”)**) and load it into the workspace in R (**library(survminer)**). 
+
+Let's now test the PH assumption for the three significant variables in our model: sex, civil status and region.
+
+```{r 3_12, exercise=TRUE, exercise.eval=FALSE, exercise.setup = "prepare-exercises", fig.width=10, fig.height=10, output.width="90%"}
+# testing for proportional hazards assumption using cox.zph()
+prop.mv1 <- cox.zph(cox.mv1)
+prop.mv1
+
+ggcoxzph(prop.mv1)
+
+```
+
+Recall that the proportional hazard assumption is supported by a non-significant relationship between residuals and time, while a significant relationship favours the alternative of non-constant hazards. The output from the proportional hazards test shows that the test is statistically significant for (_p_-value = 0.02) sex and (_p_-value = 0.03) region (but not for civilian status). The global test is also statistically significant (_p_-value = 0.02). Therefore, there appears to be a violation of the proportional hazards model that we must address (see next section).
+
+In the graphs of the scaled Schoenfeld residuals, the solid line is a smoothing spline fit to the plot, with the dashed lines representing ± 2 standard errors. Systematic departures from a horizontal line are indicative of non-proportional hazards, since proportional hazards assumes that estimates do not vary much over time. The graphical inspection does not show pattern with time. 
+
+### _Assessing linearity_
+
+The Cox model also assumes linearity in relationship between the log hazard and the covariates. This assumption should also be checked. Plotting the Martingale residuals against continuous covariates (or the functional form thereof), is a common approach to assess linearity. Martingale residuals represent the difference between the observed number of events (0 or 1) for an individual from time 0 to time _tj_ and the expected number based on the fitted model. So for example for death as an outcome, a value of martingale residual close to 1 would represent individuals who died too soon.
+
+The function [`ggcoxfunctional()`](https://www.rdocumentation.org/packages/survminer/versions/0.4.3/topics/ggcoxfunctional) in the [`survminer`](https://cran.r-project.org/web/packages/survminer/survminer.pdf) package displays graphs of continuous covariates against martingale residuals.  In survival analysis, the residuals are often skewed because of censored observations, so adding a smoother to the residual plots (for example by using a [`lowess()`](https://www.google.com/search?q=lowess+function+in+r&ie=utf-8&oe=utf-8&client=firefox-b-ab) function) can help the interpretation. The smoother should be linear to satisfy the linearity assumption.
+
+As we only examine martingale residuals for continuous covariates and we have no continuous covariates in the old age mortality dataset (except for age used as the time scale) we have not assessed the linearity here.
+
+## 3.6 Model assumption violations
+
+We have the following options for handling violations of the proportional hazards assumption:
+
+1.	Stratification
+2.	Adding covariate x time interaction(s) 
+
+<br>
+
+### _1. Stratification_
+
+If there is a variable that indicates non-proportional hazards, one valid approach is to stratify on the categories of that variable. Stratification means that data are split into groups termed strata.  A separate partial likelihood function is created for each stratum but with common values for the regression coefficients corresponding to the common explanatory variables. In the estimation, these partial likelihoods are multiplied together and the product is treated as a likelihood function.
+
+Let's now stratify by sex in the final multivariate model.
+
+```{r 3_13, exercise=TRUE, exercise.eval=FALSE, exercise.setup = "prepare-exercises"}
+# fitting a multivariable Cox model stratified by sex
+cox.mv3 <- coxph( Surv(enter, exit, event) ~ strata(sex) + civ + region, data = oldmort) 
+summary(cox.mv3)
+
+# plot.coxreg() requires that the model was fitted using coxreg(), hence the model is refitted
+cox.mv3 <- coxreg( Surv(enter, exit, event) ~ strata(sex) + civ + region, data = oldmort) 
+plot(cox.mv3)
+
+# testing the proportionality assumption of the new model
+cox.mv3 <- cox.zph(cox.mv3, terms=FALSE) # note the need for the 'terms' argument(*)
+cox.mv3
+# (*) we refit cox.mv3 using coxreg() for plot(), thus 'terms=FALSE' argument is required
+# (*) terms=FALSE can be omitted if we re-order & run cox.zph() before refitting with coxreg()
+# (*) terms=FALSE specifies a test of each separate covariate rather than a test of each term (stratum)
+
+```
+
+From these outputs we see that the proportionality assumption of the multivariable Cox model stratified by sex holds (_p_-value for global test = 0.09).
+
+Stratification is useful for variables (such as confounders) for which we do not need to estimate the effect, as we cannot examine the effects of the stratification variable. However, stratification is not possible with continuous variables, nor if any stratum is too small for evaluating the model within that stratum. Also, if there are multiple variables violating the proportional hazards assumption, it is unlikely we can feasibly stratify by all of them. 
+
+### _2. Adding covariate x time interaction_
+
+Adding a covariate x time interaction to the model allows examining the effects of that covariate.
+
+The proportional hazard assumption means that the coefficient is assumed to stay constant overtime: $\beta (t) = c$. If this is not the case for a certain variable, it can be handled by making the coefficient of this variable time-varying.
+
+One of the simplest extensions is a step function for $\beta (t)$, allowing different coefficients over different time intervals. An easy way to do this is to use the [`survSplit()`](https://www.rdocumentation.org/packages/relsurv/versions/2.1-2/topics/survsplit) function in the [`survival`](https://cran.r-project.org/web/packages/survival/survival.pdf) package to break the data set into such time intervals. 
+
+```{r 3_14, exercise=TRUE, exercise.eval=FALSE, exercise.setup = "prepare-exercises"}
+# splitting the old age mortality dataset to two time intervals around 80 years of age
+om.split <- survSplit( Surv(enter, exit, event) ~ ., data = oldmort, cut=c(80), episode= "tgroup", id="id2")
+head(om.split)
+
+# fitting Cox multivariable model to the new dataset
+cox.mv4 <- coxph( Surv(enter, exit, event) ~ sex:strata(tgroup) + civ + region, data = om.split) 
+summary(cox.mv4)
+
+# evaluating the proportional hazards assumption
+prop.mv4 <- cox.zph(cox.mv4, terms=FALSE)
+prop.mv4
+
+```
+
+From these outputs we see that 60-80 year old women have a lower risk of death than men but after 80 years there’s no longer a difference in survival by sex. Allowing the regression coefficient to differ in these two time intervals helped address the violation of the PH assumption.  The global test of the global null hypothesis that proportionality holds for our model is no longer significant (_p_-value =0.07). <br>
+
+### _Summary_
+
+As discussed, one of the main advantages of semi-parametric models is that the hazard ratios can be estimated without needing to specify or make any assumptions about the baseline hazard. If, however, estimation of the baseline hazard is of interest, a parametric approach, in which both the baseline hazard and the effect of covariates are specified, is necessary. The hazard function is estimated based on an assumed distribution of the survival times in the underlying population. If the parametric form is correctly specified, a parametric model has more power than the semi-parametric model, leading to more precise estimates. However, parametric models are not robust to mis-specification. The parametric models are more informative than non-parametricor semi-parametric models in that they allow us to predict survival times and hazard rates.
+
+
+
+## 4. Parametric methods {data-progressive=TRUE}
+
+In this section we provide a short introduction to parametric methods. The textbook by Lawless (2003) is a good source for additional reading on parametric survival models.
+
+The [`eha`](https://cran.r-project.org/web/packages/eha/eha.pdf) package, many different kinds of parametric models are available, including *proportional hazards models* and *accelerated failure time models*.
+
+
+## 4.1 Proportional hazards models
+
+A proportional hazards family of distributions is generated from one specific continuous distribution by multiplying the hazard function of that distribution by a strictly positive constant, and letting that constant vary over the full positive real line. So, if $h_0$ is the hazard function corresponding to the generating distribution, the family of distributions can be described by saying that $h$ is a member of the family if
+
+$$
+h_1(t) = ch_0(t) \ \textrm{for some} \ c > 0 \ \textrm{and all} \ t > 0
+$$
+
+Note that it is possible to choose any hazard function (on the positive real line) as the generating function. The resulting proportional hazards class of distributions may or may not be a well-recognised family of distributions.
+
+For modelling survival data with parametric proportional hazards models, the distributions of the [`phreg()`](https://www.rdocumentation.org/packages/eha/versions/2.6.0/topics/phreg) function in the [`eha`](https://cran.r-project.org/web/packages/eha/eha.pdf) package are available. The parametric distribution functions that can be used as the baseline distribution in the [`phreg()`](https://www.rdocumentation.org/packages/eha/versions/2.6.0/topics/phreg) function include, for instance, the Weibull, the Gompertz, and Piecewise constant hazards (PCH) distributions. 
+
+
+### **Weibull model**
+
+The proportional hazards regression model with a Weibull baseline distribution is given by (Weibull 1951):
+
+$$h(t│x)= p \lambda (\lambda t)^{p-1} \exp(β^T x)$$
+where $p$ is a shape  parameter and $\lambda$ a scale parameter. The Weibull distribution thus assumes a monotonic hazard that can either be increasing or decreasing. If $p > 1$, then the risk increases over time.  Whereas if $p < 1$, then the risk decreases over time. If $p = 1$ the Weibull model reduces to the exponential model, which is a proportional hazards model that assumes constant hazard over time.
+
+The function [`phreg()`](https://www.rdocumentation.org/packages/eha/versions/2.6.0/topics/phreg) in the [`eha`](https://cran.r-project.org/web/packages/eha/eha.pdf) package fits the Weibull model by default.
+
+Let's fit a Weibull model to the *old age mortality* dataset. In this dataset, individuals are followed from the day they reached 60 years of age. When specifying a parametric survival distribution to such left-truncated data, we need to subtract 60 from the two columns (age at) **enter** and (age at) **exit**. 
+
+```{r 4_1, exercise=TRUE, exercise.eval=FALSE, exercise.setup = "prepare-exercises", fig.width=8, fig.height=8, output.width="90%"}
+# Substracting 60 from exit and enter and introducing a new variable Y for
+# the survival object
+oldmort$Y <- Surv(oldmort$enter - 60, oldmort$exit - 60, oldmort$event)
+
+# fitting a Weibull baseline distribution (the default distribution in phreg)
+w.mv1 <- phreg(Y ~ sex + civ + region, data = oldmort)
+w.mv1
+print(drop1(w.mv1, test = "Chisq"))
+
+# plotting hazard, cumulative hazard, density and survivor functions
+plot(w.mv1)
+
+```
+
+
+### **Gompertz model**
+
+The proportional hazards regression model with a Gompertz baseline distribution is given by (Gompertz 1825):
+
+$$h(t│x)=p \exp(\lambda t) \exp(\beta^T x)$$
+
+The Gompertz distribution thus has an exponentially increasing failure rate, and is often appropriate for actuarial data, as the risk of death also increases exponentially over time.
+
+We can fit this model to the old age mortality dataset in the following way:
+
+```{r 4_2, exercise=TRUE, exercise.eval=FALSE, exercise.setup = "prepare-exercises", fig.width=8, fig.height=8, output.width="90%"}
+# fitting a Gompertz baseline distribution 
+g.mv1 <- phreg(Y ~ sex + civ + region, data = oldmort, dist = "gompertz")
+g.mv1
+print(drop1(g.mv1, test = "Chisq"))
+
+# plotting hazard, cumulative hazard, density and survivor functions
+plot(g.mv1)
+
+```
+
+
+### **Piecewise constant hazards (PCH) model**
+
+The proportional hazards regression model with a piecewise constant hazards (PCH) distribution is given by (Friedman 1982):
+
+$$h(t│x)=h_{0j}  \exp(β^T x)$$
+where the follow-up time is partitioned into $J-1$ intervals, and the hazard is allowed to depend on time by letting the value of the baseline hazard $h_{0j}$ change at times $j$. The PCH model is often also called the piecewise exponential model.
+
+This model is very flexible and easy to adapt to given data by changing the number of cut points (and thus the number of unknown parameters).
+
+Let's now consider fitting three PCH models to the old age mortality dataset:
+
+1. taking four 10-year intervals
+2. taking eight 5-year intervals
+3. taking ten 4-year intervals
+
+This follows the same logic as the Cox model with step function illustrated in the previous section.
+
+```{r 4_3, exercise=TRUE, exercise.eval=FALSE, exercise.setup = "prepare-exercises", fig.width=8, fig.height=8, output.width="90%"}
+# fitting a piecewise constant hazards distribution with four 10-year intervals
+pch10.mv1 <- phreg(Y ~ sex + civ + region, data = oldmort, dist = "pch", cuts = c(10, 20, 30))
+pch10.mv1
+
+# fitting a piecewise constant hazards distribution with eight 5-year intervals
+pch5.mv1 <- phreg(Y ~ sex + civ + region, data = oldmort, dist = "pch", cuts = c(5, 10, 15, 20, 25, 30, 35))
+pch5.mv1
+
+# fitting a piecewise constant hazards distribution with ten 4-year intervals
+pch4.mv1 <- phreg(Y ~ sex + civ + region, data = oldmort, dist = "pch", cuts = c(4, 8, 12, 16, 20, 24, 28, 32, 36))
+pch4.mv1
+
+# plotting hazard, cumulative hazard, density and survivor functions
+plot(pch10.mv1)
+plot(pch5.mv1)
+plot(pch4.mv1)
+
+```
+
+
+## 4.2 Selecting best parametric PH model
+
+```{r pch-prepare, warning=FALSE}
+data(oldmort)
+
+oldmort$fu_time <- oldmort$exit - oldmort$enter
+oldmort$start <- oldmort$birthdate + oldmort$enter
+oldmort$stop <- oldmort$birthdate + oldmort$exit
+
+deaths <- oldmort[oldmort$event == TRUE,]
+
+cox.sex <- coxph( Surv(enter, exit, event) ~ sex, data = oldmort) 
+cox.mv1 <- coxph( Surv(enter, exit, event) ~ sex + civ + region, data = oldmort) 
+
+oldmort$Y <- Surv(oldmort$enter - 60, oldmort$exit - 60, oldmort$event)
+
+w.mv1 <- phreg(Y ~ sex + civ + region, data = oldmort)
+g.mv1 <- phreg(Y ~ sex + civ + region, data = oldmort, dist = "gompertz")
+
+pch10.mv1 <- phreg(Y ~ sex + civ + region, data = oldmort, dist = "pch", cuts = c(10, 20, 30))
+pch5.mv1 <- phreg(Y ~ sex + civ + region, data = oldmort, dist = "pch", cuts = c(5, 10, 15, 20, 25, 30, 35))
+pch4.mv1 <- phreg(Y ~ sex + civ + region, data = oldmort, dist = "pch", cuts = c(4, 8, 12, 16, 20, 24, 28, 32, 36))
+
+```
+
+There are two methods we can use for comparing the fit of the different parametric models.  First, is to look at the maximized log likelihoods. Second, a graphical consideration of the cumulative hazard functions against the (non-parametric) estimate from a Cox regression fit.
+
+Looking at the [`phreg()`](https://www.rdocumentation.org/packages/eha/versions/2.6.0/topics/phreg) function documentation, we can see that one of the values of the _phreg_ object is ‘loglik’. 'loglik' is a vector of length two where the latter component gives the maximized log likelihood. We can thus compare the maximized log likelihoods of the parametric models.
+
+
+```{r 4_4, exercise=TRUE, exercise.eval=FALSE, exercise.setup = "pch-prepare", warning=FALSE}
+# Obtaining maximized log likelihoods for the parametric models
+mll.mv1 <- c(w.mv1$loglik[2], g.mv1$loglik[2], pch10.mv1$loglik[2], pch5.mv1$loglik[2], pch4.mv1$loglik[2])
+names(mll.mv1) <- c("w", "g", "pch10", "pch5", "pch4")
+mll.mv1
+
+```
+
+The largest value is the best. So here, the Gompertz and the piecewise constant hazards model with 4-year time intervals do best. However, this is not a formal test as a likelihood ratio test would require that the two models we want to compare are nested and that is not the case here. If using the AIC as a measure of comparison, Gompertz model would be chosen as it uses less parameters than the piecewise constant hazards model. We could keep fitting piecewise constant hazards model with even narrower time intervals to bring the maximized log likelihood even lower.  However, doing so would also be penalised by the AIC for the use of  additional parameters. Furthermore, towards the end of follow-up there are not enough deaths to allow at least the one death necessary per time interval.
+
+The second method of comparison of the model fit is graphical. We can plot the cumulative hazard functions against the (non-parametric) estimate from a Cox regression fit, and judge which looks closest. There’s a useful [`check.dist()`](https://www.rdocumentation.org/packages/eha/versions/1.2-13/topics/check.dist) function in the [`eha`](https://cran.r-project.org/web/packages/eha/eha.pdf) package that allows us to do this.
+
+```{r 4_5, exercise=TRUE, exercise.eval=FALSE, exercise.setup = "pch-prepare", warning=FALSE, fig.width=8, fig.height=8, output.width="90%"}
+# Fitting a Cox model using the same Y response variable and coxreg function required by the check.dist function
+cox.mv1 <- coxreg(Y ~ sex + civ + region, data = oldmort)
+
+check.dist(cox.mv1, w.mv1)
+check.dist(cox.mv1, g.mv1)
+check.dist(cox.mv1, pch10.mv1)
+check.dist(cox.mv1, pch5.mv1)
+check.dist(cox.mv1, pch4.mv1)
+```
+
+We see that Weibull model is not flexible enough. Gompertz model fits well, especially until around 90 years of age. The piecewise constant hazards model fits better the more time intervals are used, providing almost perfect fit with ten 4-year time intervals. 
+
+What are the implications for the estimates of the regression parameters of the different choices of parametric model? Let us compare the regression parameter estimates for the Cox model and the parametric models we just fitted. From [`coxreg()`](https://www.rdocumentation.org/packages/eha/versions/2.6.0/topics/coxreg) and [`phreg()`](https://www.rdocumentation.org/packages/eha/versions/2.6.0/topics/phreg) function documentation, we can see that information on coefficients is stored in ‘coefficients’ vectors.
+
+
+```{r 4_6, exercise=TRUE, exercise.eval=FALSE, exercise.setup = "pch-prepare", warning=FALSE}
+# outputting coefficients from different models
+cox.mv1$coefficients
+w.mv1$coefficients
+g.mv1$coefficients
+pch10.mv1$coefficients
+pch5.mv1$coefficients
+pch4.mv1$coefficients
+
+```
+
+We can see that the differences between models are not large. However, we can see that the PCH model with narrowest time intervals and the Gompertz model are closest to the Cox model. 
+
+
+## 4.3 Accelerated failure time models
+
+The accelerated failure time (AFT) model is another type of parametric model. The main difference between AFT and PH models is that while in PH models the effects of covariates are assumed to multiply the hazard by some constant over time, in AFT models the effects of covariates are assumed multiplicative on time scale. Thus, parameter estimates from AFT models are interpreted as effects on the time scale.  Hence, can either accelerate or decelerate survival time. 
+
+There is function [`aftreg()`](https://www.rdocumentation.org/packages/eha/versions/2.6.0/topics/aftreg) in the [`eha`](https://cran.r-project.org/web/packages/eha/eha.pdf) package and function [`survreg()`](https://www.rdocumentation.org/packages/survival/versions/2.11-4/topics/survreg) in the [`survival`](https://cran.r-project.org/web/packages/survival/survival.pdf)  package that perform the task of fitting AFT models. The main difference between `aftreg()` and `survreg()` is that the latter does not allow for left truncated data. Therefore to fit an AFT model to the left-truncated old age mortality dataset, we use `aftreg()`.
+
+```{r 4_7, exercise=TRUE, exercise.eval=FALSE, exercise.setup = "prepare-exercises", fig.width=8, fig.height=8, output.width="90%"}
+# fitting an AFT model with Gompertz distribution
+g.aft <- aftreg(Y ~ sex + civ + region, data = oldmort, dist = "gompertz")
+g.aft
+# plotting the proportional hazards model with with Gompertz distribution
+plot(g.mv1)
+# plotting the accelerated failure time model with with Gompertz distribution
+plot(g.aft)
+
+# comparing maximized log likelihoods of the PH and AFT model with Gompertz distribution
+mll.g <- c(g.mv1$loglik[2], g.aft$loglik[2])
+names(mll.g) <- c("g", "aft.g")
+mll.g
+
+```
+
+Comparing the corresponding result for the PH and the AFT models with the Gompertz distribution, we find that the maximized log-likelihood in the latter case is smaller. This indicates that the proportional hazards model fit is better. Since the numbers of parameters are equal in the two cases, comparing the AICs of the models amounts to comparing the maximized likelihoods.
+
+In the examples of parametric models considered erstwhile, we have seen that one of their advantages is that it is easy to study and plot the hazard function, and not only the cumulative hazards function as in case of the semi-parametric Cox model. 
+
+
+
+## References
+
+Breslow N. Covariance analysis of censored survival data. Biometrika 1974; 30: 89–99.
+
+Broström G. (2012). Event history analysis with R. Chapman & Hall/CRC, 2012.
+
+Collett D. Modelling survival data in medical research, Second edn. Chapman & Hall/CRC, 2003.
+
+Cox D. Regression models and life tables. Journal of the Royal Statistical Society Series B (with discussion) 1972; 34: 187–220.
+
+Efron B. Efficiency of Cox’s likelihood function for censored data. Journal of the American Statistical Association 1977; 72: 557–565.
+
+Friedman M. Piecewise Exponential models for survival data with covariates. The Annals of Statistics 1982; 10: 101–113.
+
+Gompertz B . On the nature of the function expressive of the law of human mortality, and on a new mode of determining the value of life contingencies. Philosophical Transactions of the Royal Society of London 1825; 115: 513–585.
+
+Lawless J. Statistical models and methods for lifetime data, Second edn. John Wiley & Sons, 2003.
+
+Weibull W. A statistical distribution function of wide applicability. Journal of Applied Mechanics, Transactions ASME 1951; 18: 293–297.
+

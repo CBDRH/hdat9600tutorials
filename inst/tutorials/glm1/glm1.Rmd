@@ -1,0 +1,601 @@
+---
+title: "HDAT9600 Generalised Linear Models 1"
+tutorial:
+  id: "au.edu.unsw.cbdrh.hdat9600.tutorials.glm1"
+output:
+  learnr::tutorial:
+    progressive: false
+    allow_skip: true
+    css: css/tutorials.css
+runtime: shiny_prerendered
+description: "Models for binary outcomes"
+---
+
+![](images/UNSW_2017_Big_Data_landscape.jpg){width="75%"}
+
+```{r setup, include=FALSE, echo=FALSE, message=FALSE, warning=FALSE}
+
+## required packages not installed during tutorial package installation,
+# libs <- c("e1071")
+# missing <- !libs %in% installed.packages()
+# if (any(missing)) {
+#   install.packages(libs[missing],repos="https://cloud.r-project.org", dependencies = TRUE)
+# }
+
+library(learnr)
+library(ggplot2)
+library(dplyr)
+library(car)
+library(shiny)
+library(faraway)
+
+knitr::opts_chunk$set(echo = FALSE)
+```
+
+```{r server-setup, context="server"}
+# do not use - it interferes with the learnr "Start over" functionality
+# session$onSessionEnded(stopApp)
+```
+
+## Introduction
+
+<span class="copyright">© Copyright 2021 UNSW Sydney. All rights reserved except where otherwise stated.</span>
+
+This chapter is also closely based on Chapter 2 of the second set text for the HDAT9600 course: Julian J. Faraway. Extending the Linear Models with R. 2nd Edition. CRC Press. This text is referred to as _Faraway ELMwR_ in these notes. Although you are encouraged to use this text for additional readings, this is not essential --- these notes have abstracted all the salient points from this text for the material covered by this course.
+
+In this chapter we will cover the basics of logistic regression.
+
+## Binary Outcomes
+
+So far, we have considered linear models, with continuous outcome (response) variables. But what if our response is categorical? We'll start by considering the simplest categorical case, in which there is a binary (yes/no, or true/false) outcome.
+
+For this initial exploration, we'll use data from the Western Collaborative Group Study (into coronary heart disease (CHD)), which started in 1960 and enrolled 3154 healthy men (alas, not also women) aged 39 to 59 years from the San Francisco area in the US. All subjects were free of heart disease at enrolment (or at least, they were judged to be free of obvious heart disease, using the knowledge and investigation methods available at the time). They were then followed for over eight years. These data can be found in the `wcgs` dataset contained in the _faraway_ package. The outcome variable which we will be using is `chd`, which is a factor variable with levels `yes` or `no` indicating whether each of these men had developed heart disease at 8.5 years after enrolment. Various predictor variables, mostly measured at the time of enrolment into the study, were also collected. You can examine the manual (help) page for the dataset by typing `?faraway::wcgs` at the RStudio console prompt. Note that the column containing systolic blood pressure is called `sdp`, not `sbp` as you would expect (diastolic blood pressure is called `dbp`...). 
+
+<div class="aside">
+
+### Why not a time-to-event (survival) analysis?
+
+You may notice that there is also a variable in the `wcgs` dataset called `timechd`, which contains the time since enrolment at which heart disease was diagnosed, or the time at which follow-up ceased if they had not developed heart disease. This information permits a time-to-event analysis, also known as a survival analysis. In general, if such information is available, it is better to use it and conduct a survival analysis rather than a logistic regression analysis using just a binary yes/no outcome which ignores the time information. However, for instructional purposes, we will only be using the binary `chd` outcome variable in this section on GLMs. Survival analysis is covered in the next section of this HDAT9600 course, and we will re-visit this dataset to re-analyse it using survival analysis then.
+
+</div>
+
+### EDA
+
+We'll start with a very abbreviated exploratory data analysis, looking at just the `chd`, `sdp` (systolic blood pressure, which for some reason is called `sdp`) and `cigs` variables in the dataset.
+
+```{r binary-set-up, echo=FALSE, exercise=FALSE}
+data(wcgs, package="faraway")
+wcgs$chdi <- unclass(wcgs$chd) - 1
+logmod <- glm(chdi ~ sdp + cigs, family = binomial, data=wcgs)
+logmod_hc <- glm(chdi ~ height + cigs, family = binomial, data=wcgs)
+betas <- coef(logmod)
+predprob <- predict(logmod, type="response")
+chd_smoking_probs <- c(non_smoker=ilogit(sum(betas*c(1, 120, 0))),
+  pack_a_day=ilogit(sum(betas*c(1, 120, 25))))
+chd_smoking_odds <- c(non_smoker=prod(exp(betas*c(1, 120, 0))),
+  pack_a_day=prod(exp(betas*c(1, 120, 25))))
+```
+
+
+```{r binary-a, echo=TRUE, exercise=TRUE}
+# load the dataset
+data(wcgs, package="faraway")
+
+# get a summary for the three initial variables of interest
+# note the systolic BP column is inexplicably called sdp
+summary(wcgs[,c("chd", "sdp", "cigs")])
+```
+
+The main thing to note is that only 257 men in the cohort of 3154 developed heart disease in the time that they were under observation (8.5 years). Systolic blood pressure is in millimetres of mercury (mm Hg), and `cigs` is the number of cigarettes smoked per day.
+
+Let's plot these data, using base $\textsf{R}$ graphics to start with:
+
+```{r binary-b, echo=TRUE, exercise=TRUE, fig.width=8, fig.height=8, output.width="90%", exercise.setup="binary-set-up"}
+plot(sdp ~ chd, data=wcgs)
+```
+
+As we have seen before, the `plot()` function behaves intelligently and creates a Box plot because it notices that the `chd` variable is a factor. We can override that by creating a version of the `chd` variable that isn't a factor. Note that `unclass()` removes a class from an object (in this case, a column in a data frame). This converts a factor back to an integer, with the base or reference level as the value 1, the next level as 2 and so on. So we end up with 'no' converted to 1 and 'yes' converted to 2. We really want zero for no and 1 for yes, so we just subtract 1.
+
+```{r binary-c, echo=TRUE, exercise=TRUE, fig.width=8, fig.height=8, output.width="90%", exercise.setup="binary-set-up"}
+# unclass the factor variable and subtract 1
+wcgs$chdi <- unclass(wcgs$chd) - 1
+# an alternative, and perhaps clearer approach
+# wcgs$chdi <- ifelse(wcgs$chd == "no", 0, 1)
+
+# redraw the plot
+plot(sdp ~ chdi, data=wcgs)
+```
+
+Hmm, that's not much use, because systolic blood pressure (`sdp`) is typically measured or rounded to the nearest 5 mm Hg, and thus many observations overlay each other. Conveniently, $\textsf{R}$ provides a `jitter()` function that does exactly what it says - it introduces slight, random jitter into the values for a variable (the same can be achieved by just adding a small random number to the variable, but `jitter()` is neater).
+
+```{r binary-d, echo=TRUE, exercise=TRUE, fig.width=8, fig.height=8, output.width="90%", exercise.setup="binary-set-up"}
+# redraw the plot with jittering
+plot(jitter(chdi, 0.1) ~ jitter(sdp), data=wcgs,
+     xlab="Systolic BP", ylab="Heart Disease", pch=".")
+```
+
+That's better, and we can get some sense of the distribution of weights at each level of `chd` (or the numerical version of that which we created, `chdi`). But a better method might be to use faceted histograms in _ggplot2_, like this:
+
+```{r binary-e, echo=TRUE, exercise=TRUE, fig.width=8, fig.height=8, output.width="90%", exercise.setup="binary-set-up", message=FALSE}
+library(ggplot2)
+
+ggplot(data=wcgs, aes(x=sdp, fill=chd)) + geom_histogram() + 
+       facet_grid(chd ~ ., scales = "free") + 
+       labs(x="Systolic BP", y="Heart Disease")
+
+ggplot(data=wcgs, aes(x=cigs, fill=chd)) + geom_histogram() + 
+       facet_grid(chd ~ ., scales = "free") + 
+       labs(x="Daily cigarette consumption", y="Heart Disease")
+```
+
+From these we can see that the distribution of systolic BP in both the heart disease and no heart disease groups appears to be somewhat similar but with a higher mean in the heart disease group (as was also evident from the Box plot above), but that there is a greater proportion of smokers (and heavier smokers) in the heart disease group. We can look at those simultaneously using facets, jittering and transparency (as set by the _alpha_ channel value):
+
+```{r binary-f, echo=TRUE, exercise=TRUE, fig.width=8, fig.height=8, output.width="90%", exercise.setup="binary-set-up"}
+ggplot(data=wcgs, aes(x=sdp, y=cigs, fill=chd)) + 
+      geom_point(alpha=0.2, position=position_jitter()) + 
+      facet_grid(. ~ chd) 
+```
+
+So, we might reasonably want to predict the heart disease outcome (yes or no) for individuals based on their systolic blood pressure and cigarette consumption, and/or we might wish to explore the relationship between systolic blood pressure, cigarette smoking and heart disease. From these plots it is clear that for given values of systolic blood pressure and cigarette smoking, some subjects developed heart disease and some didn't. Thus we need to model the probability of developing heart disease for a given set of predictor values, rather than the values zero and one (or no and yes, or false and true).
+
+A naïve approach might be to fit a linear regression to these data, like this:
+
+```{r binary-g, echo=TRUE, exercise=TRUE, fig.width=8, fig.height=8, output.width="90%", exercise.setup="binary-set-up"}
+linmod <- lm(chdi ~ sdp, data=wcgs)
+
+summary(linmod)
+
+plot(chdi ~ sdp, data=wcgs)
+abline(linmod)
+```
+
+There are clearly problems with this approach. The regression line will eventually go above 1 and below zero (with sufficiently extreme values of systolic BP), and that isn't compatible with a probability. The probabilities could be truncated at zero and one, but that would mean that there were values of systolic BP for which heart disease was absolutely impossible, or absolutely certain, and that seems very implausible. Thus, use of a linear model with a binary outcome or response variable is generally not a good idea.
+
+## Logistic regression
+
+Let's restate our problem in a more general manner. We have an outcome variable $Y_i$ for $i=1, \ldots, n$ which takes the values zero or one only (a binary variable), with $P(Y_i = 1) = p_i$ (that is, the probability of $Y_i$ being one is $p_i$). This binary outcome may be related to a set of $q$ predictor variables, $x_{i1}, \ldots, x_{iq}$. What we need is a model that describes the relationship of $x_{1}, \ldots, x_{q}$ to the probability $p$ (across all $i$).
+
+If we were to create a linear model for this, it would be of the form:
+
+$$
+\eta_i = \beta_0 + \beta_1 x_{i1} + \ldots + \beta_q x_{iq}
+$$
+
+We have seen in previous chapters just how flexible this linear model can be: it can accommodate both quantitative and qualitative (factor) predictors, and allows for the use of transformations and combinations of the original predictors. The main limitation of linear models is the requirement that the outcome (response) variable be a continuous quantity. Generalised linear models (GLMs) extend this linear model to accommodate other types of outcome. But how?
+
+We've already noted that the linear relationship $\eta_i = p_i$ won't work because $0 \le p_i \le 1$. So instead, we use a _link function_, $g$, such that $\eta_i = g(p_i)$.
+
+We need $g$ to be monotonic (that is, always increasing or always decreasing, but not both) and $0 \le g^{-1}(\eta) \le 1$ for any and all $\eta$ (where $g^{-1}()$ is the inverse of the function --- that is, the back-transformation).
+
+Handily, the _logit_ function exactly meets these requirements. The _logit_ function is defined as:
+
+$$
+\eta = \textrm{log}(\frac{p}{1 - p})
+$$
+
+or, the equivalent:
+
+$$
+p = \frac{e^\eta}{1 + e^\eta}
+$$
+
+When we combine a logit link function with a set of linear predictors, we have a _logistic regression_.
+
+The _faraway_ package provides implementations of the logit link function and its inverse as `logit()` and `ilogit()` (the _boot_ package also provides `logit()` and `inv.logit()` functions that do the same things), and we can use these to visualise the relationship between $p$ and the linear prediction $\eta$:
+
+```{r logistic-regression-a, echo=TRUE, exercise=TRUE, fig.width=8, fig.height=8, output.width="90%", exercise.setup="binary-set-up"}
+curve(ilogit(x), -6, 6, xlab=expression(eta), ylab="p")
+```
+
+Notice that the logistic curve is almost linear in it middle portion, which means that for modelling outcomes of moderate probabilities (not very high or very low), logistic regression will behave rather similarly to linear regression, but as the curve approaches one or zero, it flattens out, so that it never quite reaches those values. That means that a logistic regression model will never predict anything that is absolutely certain or absolutely impossible --- that is, with probabilities one or zero --- and that's exactly what we want. Notice also, however, that unlike a linear model, the relationship between changes in values of the predictors and changes in the predicted probability are not constant, and instead they depend on where the changes are made. Thus, interpretation of logistic regression parameters estimates is a bit more difficult than for a linear model (or at least a linear model without any transformations).
+
+## Fitting a logistic model
+
+We can't use OLS or any variant of it to fit a logistic model, due to the intrinsic lack of linearity of the logit link function. However, we can use _maximum likelihood estimation_ (MLE) to numerically find the optimal set of $\beta$ parameters --- we have seen how MLE works in the HDAT9200 Statistical Foundations course (and in Chapter 2 of this course, where we used MLE to fit a linear model as an alternative to OLS estimation). The log-likelihood with the logit link function is
+
+$$
+l(\beta) = \sum_{i=1}^{n} [y_i \eta_i - \textrm{log}( 1 + e_i^\eta)]
+$$
+
+Maximising this likelihood will yield the maximum likelihood estimates $\widehat{\beta}$. In $\textsf{R}$, the model is fitted like this:
+
+```{r logistic-regression-b, echo=TRUE, exercise=TRUE, fig.width=8, fig.height=8, output.width="90%", exercise.setup="binary-set-up"}
+logmod <- glm(chdi ~ sdp + cigs, family = binomial, data=wcgs)
+```
+
+The `glm()` function can fit a range of _generalised linear models_, and thus the type of response variable (or rather, its distribution) must be specified via the `family=` argument. Other than that, `glm()` is very much like the now familiar `lm()` function.
+
+Note that the `relevel()` function can be used to specify the levels for the $y$ (outcome) variable in a logistic regression, as well as for any factor predictor variables. By default, the alphabetically lowest value of the outcome variable is treated as $y = 0$.
+
+The model object can be examined in the usual way using `summary()`:
+
+```{r logistic-regression-c, echo=TRUE, exercise=TRUE, fig.width=8, fig.height=8, output.width="90%", exercise.setup="binary-set-up"}
+summary(logmod)
+```
+
+You'll notice some similarities to the linear model summary, but also some differences. 
+
+### Regression coefficients
+
+We'll start with the regression co-efficients. In the model above, they are $\beta_0$ = -6.25, $\beta_1$ = 0.027 and $\beta_2$ = 0.023. The estimated probability of developing heart disease can be computed from these co-efficients just as we would compute a predicted value from a linear model
+
+```{r logistic-regression-d, echo=TRUE, exercise=TRUE, fig.width=8, fig.height=8, output.width="90%", exercise.setup="binary-set-up"}
+# plot the systolic BP versus CHD (as integer 0 or 1) as a scatter plot
+plot(jitter(chdi, 0.1) ~ jitter(sdp), data=wcgs, xlab="Systolic BP",
+     ylab="Heart disease", pch=".")
+
+# add a curve for fitted values holding cigs=0 (non-smoker)
+curve(ilogit(betas[1] + betas[2]*x + betas[3]*0), add=TRUE, lty=2)
+
+# add a curve for fitted values holding cigs=25 (pack-a-day smoker)
+curve(ilogit(betas[1] + betas[2]*x + betas[3]*25), add=TRUE)
+```
+
+The dashed line is the predicted probabilities of developing heart disease (according to our model) for a non-smoker, and the solid line is the predicted probabilities for a pack-a-day smoker.
+
+Let's do the same for smoking, holding systolic BP fixed at, say, 110 mm Hg (normotensive, dashed line) and 160 mm Hg (hypertensive, solid line).
+
+```{r logistic-regression-e, echo=TRUE, exercise=TRUE, fig.width=8, fig.height=8, output.width="90%", exercise.setup="binary-set-up"}
+# first get the beta co-efficients from the model
+(betas <- coef(logmod))
+
+# then plot the systolic BP versus CHD (as interger 0 or 1) as a scatter plot
+plot(jitter(chdi, 0.1) ~ jitter(cigs), data=wcgs, xlab="Cigarettes per day",
+     ylab="Heart disease", pch=".")
+
+# add a curve for fitted values holding sdp=110 (normotensive)
+curve(ilogit(betas[1] + betas[2]*110 + betas[3]*x), add=TRUE, lty=2)
+
+# add a curve for fitted values holding sdp=160 (hypertensive)
+curve(ilogit(betas[1] + betas[2]*160 + betas[3]*x), add=TRUE)
+```
+
+### What are the odds?
+
+You'll notice that we used the `ilogit()` inverse logit function to convert the predicted values into probabilities. 
+
+Odds are an alternative way of expressing probabilities that developed as a way of expressing pay-outs for bets, but they also have the convenient mathematical property of being unbounded above, meaning they start at zero but have no upper limit, which makes them desirable for some types of models (modelling contingency tables).
+
+The odds of an event with probability _p_ are:
+
+$$
+o = \frac{p}{1 - p}
+$$
+
+or the probability of an event in terms of its odds, _o_ is:
+
+$$
+p = \frac{o}{1 + o}
+$$
+
+So, a logistic model with two covariates (as we have, above) can be written as:
+
+$$
+\textrm{log(odds)} = \textrm{log}(\frac{p}{1 - p}) = \beta_o + \beta_1 x_1 + \beta_2 x_2
+$$
+
+and by exponentiating both sides of this equation:
+
+$$
+\textrm{odds} = e^{\beta_0} \cdot e^{\beta_1 x_1} \cdot e^{\beta_2 x_2}
+$$
+
+Thus a unit increase in $x_1$ with $x_2$ held fixed will increase the log-odds of an outcome by $\beta_1$, and increase the odds of an outcome by $e^{\beta_1}$. Because of this, the exponentiated version of the $\beta$ co-efficients is typically more useful, because they can be interpreted as odds, not log-odds:
+
+```{r logistic-regression-f, echo=TRUE, exercise=TRUE, fig.width=8, fig.height=8, output.width="90%", exercise.setup="binary-set-up"}
+exp(betas)
+```
+
+So we can say that, at least according to our simple two predictor logistic model, the odds of developing heart disease after 8.5 years of follow-up are 2.7% greater for every 1 mm Hg increase in systolic BP, and 2.3% greater for every additional cigarette smoked per day.
+
+An important and useful relation is that $\textrm{exp}(x) \sim 1 + x$ for small values of $x$. In our model, $\beta_2$ = 0.023 meaning that the log-odds of heart disease increase by 2.3% for each additional cigarette smoked, but the odds of heart disease also increase by about 2.3% for each additional cigarette. Thus, for small values of the regression co-efficients, they can be interpreted approximately as odds. But only for small values!
+
+However, it is more natural to express effects in realistic increments, as a per 10 mm Hg or as per one pack-a-day. So the effect of a pack-a-day (where a pack is 25 cigarettes) is:
+
+```{r logistic-regression-g, echo=TRUE, exercise=TRUE, fig.width=8, fig.height=8, output.width="90%", exercise.setup="binary-set-up"}
+exp(betas[3]*25)
+```
+
+That is, there is (according to our model), a 77% increase in the odds of developing heart disease for a pack-a-day smoker compared to a non-smoker.
+
+## Probabilities and relative risks from logistic models
+
+Scientists tend to be more comfortable with a probability scale than an odds scale, thus it is common practice to use the difference in probabilities as a predictor is changed over a sensible range (while holding other predictors fixed). Thus, the predicted probabilities from our model of heart disease for a non-smoker and for a 25-a-day smoker, both with systolic BPs of 120 mm Hg, are:
+
+```{r logistic-regression-h, echo=TRUE, exercise=TRUE, fig.width=8, fig.height=8, output.width="90%", exercise.setup="binary-set-up"}
+(chd_smoking_probs <- c(non_smoker=ilogit(sum(betas*c(1, 120, 0))),
+  pack_a_day=ilogit(sum(betas*c(1, 120, 25)))))
+(chd_smoking_odds <- c(non_smoker=prod(exp(betas*c(1, 120, 0))),
+  pack_a_day=prod(exp(betas*c(1, 120, 25)))))  
+```
+
+From these absolute predicted probabilities, we can easily calculate the relative risk:
+
+```{r logistic-regression-i, echo=TRUE, exercise=TRUE, fig.width=8, fig.height=8, output.width="90%", exercise.setup="binary-set-up"}
+cat("Relative risk of CHD in men smoking 25 cigs per day")
+chd_smoking_probs[2] / chd_smoking_probs[1]
+cat("Odds ratio for CHD in men smoking 25 cigs per day")
+chd_smoking_odds[2] / chd_smoking_odds[1]
+```
+
+Notice that the relative risk of heart disease for a 25-a-day smoker of 1.711 is quite close to the odds ratio of heart disease for a 25-a-day smoker of 1.77 (see also the exponentiated $\beta$ estimates in the previous section). This is true only for low probability outcomes (less than 10%, i.e. p < 0.1, as a rule of thumb). For higher probability outcomes, the odds ratio and the relative risk will diverge. 
+
+## Inference on logistic regression models
+
+Let's say we want to compare two logistic regression models, one a larger model with $l$ parameters and likelihood $L_L$, and one a simpler model which is a subset or subspace of the larger model, with just $s$ parameters and likelihood $L_S$. Recalling the likelihood methods covered in the HDAT9200 course, we can use the likelihood ratio statistic as an appropriate test statistic for comparing the models:
+
+$$
+2 \textrm{log}\frac{L_L}{L_S}
+$$
+
+We can also use the [_deviance_](https://en.wikipedia.org/wiki/Deviance_(statistics)) to compare models. For logistic models, the deviance is defined as:
+
+$$
+D = -2 \sum_{i = 1}{n} \widehat{p}_i \textrm{logit}( \widehat{p}_i ) +
+\textrm{log}( 1 - \widehat{p}_i)
+$$
+
+where $\widehat{p}_i$ are the fitted probabilities from the model under consideration. 
+
+For other types of GLMs, the deviance can be used to assess the goodness-of-fit, but not in logistic models, where other measures such as the _Hosmer-Lemeshow test_ (covered later in this section) must be used.
+
+Referring again to the model summary:
+
+```{r logistic-inference-a, echo=TRUE, exercise=TRUE, exercise.eval=TRUE, fig.width=8, fig.height=8, output.width="90%", exercise.setup="binary-set-up"}
+summary(logmod)
+```
+
+The `Residual deviance` reported is the deviance for the current model, while the `Null deviance` is the deviance for a model with no predictors and just an intercept term.
+
+The deviance can be used to compare two nested models (that is, where one is a subset or a subspace of the other): the test statistic is $D_S - D_L$, which is asymptotically distributed as $\chi_{s - l}^2$ --- that is, as a chi-square with $s - l$ degrees of freedom. Thus we can compare the fitted model with the null model (which, having no predictors, is a subset of the fitted model) by looking at the difference between the residual deviance (the deviance for the fitted model) and the null deviance. In the example above, this difference is 1781.2 - 1702.4 with 2 degrees of freedom (because there are two predictors in the model). From this we can calculate a _p_-value for the hypothesis that one or more of the predictors is related to the outcome probability:
+
+```{r logistic-inference-b, echo=TRUE, exercise=TRUE,  fig.width=8, fig.height=8, output.width="90%", exercise.setup="binary-set-up"}
+pval <- 1 - pchisq(1781.2 - 1702.4, 2)
+pval
+```
+
+Given the very small _p_-value (it isn't actually zero, but it is so small that $\textsf{R}$ cannot distinguish it from zero), we can reject the null hypothesis that there is no relationship between the predictors and the probability of the outcome.
+
+<div class="aside">
+
+### The Data Scientist way...
+
+As Data Scientists, we dislike re-typing values as we just did above, so a better way is to extract the values directly from the logistic regression model summary object:
+
+```{r logistic-inference-c, echo=TRUE, exercise=TRUE,  fig.width=8, fig.height=8, output.width="90%", exercise.setup="binary-set-up"}
+# examine the structure of the model object
+str(logmod)
+
+# use the deviance values and degrees-of-freedom extracted
+# directly from the model object
+pval <- 1 - pchisq(logmod$null.deviance - logmod$deviance, logmod$df.null - logmod$df.residual)
+pval
+```
+
+Ah, that's better!
+
+</div>
+
+## Inference on individual predictors
+
+We can test individual predictors by dropping those predictors and re-fitting the model, and then computing the difference in deviance observed. Curiously, we can use the `anova()` to do this --- when it is passed two GLM objects, it is smart enough to work out that we want an _analysis of deviance_, not an _analysis of variance_:
+
+```{r logistic-inference-d, echo=TRUE, exercise=TRUE,  fig.width=8, fig.height=8, output.width="90%", exercise.setup="binary-set-up"}
+# fit a logistic model with just cigs, leaving out sdp (systolic BP)
+logmod_c <- glm(chdi ~ cigs, family = binomial, data=wcgs)
+
+# perform an analysis of deviance by comparing it to the original model
+# with both sdp and cigs in it
+# we use the print() function to retain the original output formatting
+print(anova(logmod_c, logmod, test="Chi"))
+```
+
+We can see that systolic BP remains a significant predictor in a model that also adjusts for cigarette smoking. What if we compare similar models that use `height` instead of systolic blood pressure?
+
+```{r logistic-inference-e, echo=TRUE, exercise=TRUE,  fig.width=8, fig.height=8, output.width="90%", exercise.setup="binary-set-up"}
+# fit model with height and cigs as predictors
+logmod_hc <- glm(chdi ~ height + cigs, family = binomial, data=wcgs)
+
+# examine summary for that model
+summary(logmod_hc)
+
+# fit model with just cigs as predictors
+logmod_c <- glm(chdi ~ cigs, family = binomial, data=wcgs)
+
+# perform analysis of deviance
+print(anova(logmod_c, logmod_hc, test="Chi"))
+```
+
+From this output, we see that height is not a significant predictor if cigarette smoking is also in the model.
+
+<div class="aside">
+
+### But couldn't we have...
+
+At this point, you may be asking yourself "Couldn't we have just used `anova()` to calculate the overall significance of the model, instead of having to calculate it ourselves using the differences in deviances and `pchisq()`?". 
+
+The answer is, of course, yes, we could have!
+
+```{r logistic-inference-f, echo=TRUE, exercise=TRUE,  fig.width=8, fig.height=8, output.width="90%", exercise.setup="binary-set-up"}
+# fit intercept only (null) model
+logmod_null <- glm(chdi ~ 1, family = binomial, data=wcgs)
+
+# perform analysis of deviance versus systolic BP and cigarettes model
+print(anova(logmod_null, logmod, test="Chi"))
+```
+
+This provides the same result that we obtained ourselves.
+
+</div>
+
+### Testing all the predictors in a model, one-by-one
+
+As with linear models, we can use the `drop1()` function to drop each predictor from our model, one-by-one, and perform an analysis of deviance as we just did above.
+
+```{r logistic-inference-g, echo=TRUE, exercise=TRUE,  fig.width=8, fig.height=8, output.width="90%", exercise.setup="binary-set-up"}
+print(drop1(logmod, test="Chi"))
+```
+
+Let's repeat that for our height and cigarettes model.
+
+```{r logistic-inference-h, echo=TRUE, exercise=TRUE,  fig.width=8, fig.height=8, output.width="90%", exercise.setup="binary-set-up"}
+print(drop1(logmod_hc, test="Chi"))
+```
+
+This is consistent with what we saw above when we "manually" dropped out the `sdp` or the `height` variables.
+
+### The _z_-value test
+
+An alternative to this drop-one-predictor $\chi^2$ test is the _z_-value test, which is computed by $\widehat{\beta} / se(\widehat{\beta})$ which is asymptotically normally distributed. _z_-values and their corresponding test probabilities are reported in the logistic model summary:
+
+```{r logistic-inference-i, echo=TRUE, exercise=TRUE,  fig.width=8, fig.height=8, output.width="90%", exercise.setup="binary-set-up"}
+summary(logmod)
+```
+
+Note that the _p_-values for the _z_-value tests for each predictor are similar to the _p_-values for the drop-one-predictor $\chi^2$ tests above. In most cases, the _z_-value test gives a very similar result as the drop-one-predictor analysis of deviance test, but not always --- in particular, with very sparse data the _z_-value has been shown to be too small [Hauck Jr, WW & Donner, A. 1977. Wald's Test as Applied to Hypotheses in Logit Analysis. Journal of the American Statistical Association. 72(360a) pp851-853](https://doi.org/10.1080/01621459.1977.10479969). Thus the deviance-based test is safer, although it involves an extra step to compute.
+
+## Confidence intervals
+
+Confidence intervals for logistic regression models parameter estimates can be constructed using the usual normal approximation methods. These are called the _Wald_ CIs, and are fine when there is enough data. The $100(1 - \alpha)\%$ Wald confidence interval for $\beta_i$ is:
+
+$$
+\widehat{\beta}_i \pm z_{\alpha/2} se(\widehat{\beta}_i)
+$$
+
+where $z_{\alpha/2}$ is a quantile from the normal distribution, and thus a 95% confidence interval for $\beta_1$ (systolic BP) in our original model would be:
+
+```{r logistic-inference-j, echo=TRUE, exercise=TRUE,  fig.width=8, fig.height=8, output.width="90%", exercise.setup="binary-set-up"}
+0.026697 + c(-1, 1) * 1.96 * 0.003720
+```
+
+<div class="anxiety">
+
+### Do it programmatically!
+
+```{r logistic-inference-k, echo=TRUE, exercise=TRUE, fig.width=8, fig.height=8, output.width="90%", exercise.setup="binary-set-up"}
+coef(logmod)
+(lc <- summary(logmod)$coefficients)
+
+coef(logmod)[2]  + c(-1, 1) * 1.96 * summary(logmod)$coefficients[2,2]
+```
+
+OK!
+
+</div>
+
+However, for models fitted to smaller data sets, the `confint()` function will calculate a _profile likelihood-based confidence interval_, using numerical estimation, and these are generally to be preferred these days (they require more computation, but computational power is now cheap and plentiful):
+
+```{r logistic-inference-l, echo=TRUE, exercise=TRUE, fig.width=8, fig.height=8, output.width="90%", exercise.setup="binary-set-up"}
+# profile likelihood CIs by default
+confint(logmod)
+
+# or Wald CIs if requested
+confint.default(logmod)
+```
+
+With this dataset, which contains several thousand observations, there is barely any difference between the profile likelihood CIs and the Wald CIs, but for smaller datasets, the Wald CIs may differ quite a lot from the preferable profile likelihood CIs (which do not suffer from the Hauck-Donner effect mentioned above).
+
+## Logistic regression diagnostics
+
+As with linear models, the residuals are the most important way of checking how well the model fits the data (or _v-v_) and for gaining clues about how the model might be improved. As with linear models, the residuals are computed as the difference between the observed and the fitted values. There are two types of fitted (predicted) values for a logistic model: one is in the linear predictor scale ($\eta$ in the model equations we considered earlier), the other is in the predicted probability scale $p = \textrm{logit}^{-1}(\eta)$:
+
+```{r logistic-diagnostics-a, echo=TRUE, exercise=TRUE, fig.width=8, fig.height=8, output.width="90%", exercise.setup="binary-set-up"}
+linpred <- predict(logmod)
+predprob <- predict(logmod, type="response")
+
+cat("First few predicted values in the linear predictor scale")
+head(linpred)
+
+cat("First few predicted values in the probability scale")
+head(predprob)
+
+cat("Applying the inverse logit function to the linear predictor scale")
+head(ilogit(linpred))
+```
+
+OK, we can now compute the _raw residuals_ as $y - \widehat{p}$:
+
+```{r logistic-diagnostics-b, echo=TRUE, exercise=TRUE, fig.width=8, fig.height=8, output.width="90%", exercise.setup="binary-set-up"}
+raw_residuals <- wcgs$chdi - predprob
+head(raw_residuals)
+```
+
+Of course, there is an easier way:
+
+```{r logistic-diagnostics-c, echo=TRUE, exercise=TRUE, fig.width=8, fig.height=8, output.width="90%", exercise.setup="binary-set-up"}
+raw_residuals2 <- residuals(logmod, type="response")
+head(raw_residuals2)
+```
+
+Now that we have the residuals, we can plot them against the fitted values, just as we did for linear models:
+
+```{r logistic-diagnostics-d, echo=TRUE, exercise=TRUE, fig.width=8, fig.height=8, output.width="90%", exercise.setup="binary-set-up"}
+plot(residuals(logmod, type="response") ~ predict(logmod),
+     xlab="Linear predictor (fitted values)", ylab="Raw residuals")
+```
+
+Oh! That's rather disappointing! Because _y_ only takes the values zero or one, the residual can only takes one of two values for any given linear predictor value --- the upper line corresponds to `chdi`=1, and the lower line to `chdi`=0. Note that we could also chosen to use the predicted probability fitted values for the x-axis, but that doesn't fix the problem.
+
+Another issue is that we don't expect the raw residuals to have equal variance, because the variance of a binary variable is equal to $p(1 - p)$ which means that there is greater variance in the middle of the range of probabilities than at either end (near zero or one). For this reason, it is desirable to standardise the residuals in some way, and these are known as the _deviance residuals_, denoted by $r_i$. The deviance residuals are the default output from the `residuals()` function when it is passed a GLM model object.
+
+We can now make a more useful residuals plot by grouping the residuals into bins where each bin contains observations with similar predictor values. For the `wcgs` dataset, we'll use 100 bins so that each bin has about 30 observations in it. Following the lead of Faraway ELMwR, we'll make use of the _dplyr_ package to do the heavy lifting of the data manipulation.
+
+```{r logistic-diagnostics-e, echo=TRUE, exercise=TRUE, fig.width=8, fig.height=8, output.width="90%", exercise.setup="binary-set-up", message=FALSE, warning=FALSE}
+library(dplyr)
+# add deviance residuals and fitted values to the dataset
+wcgs %>% mutate(residuals=residuals(logmod), linpred=predict(logmod)) %>%
+# group into bins
+group_by(cut(linpred, breaks=unique(quantile(linpred, (1:100)/101)))) %>%
+# calculate the means for each bin group and output to diag_df
+summarise(mean_binned_residuals=mean(residuals), mean_binned_linpred=mean(linpred)) -> diag_df
+
+# now plot these mean binned residuals against the mean binned 
+# linear predictor fitted values
+ggplot(data=diag_df, aes(x=mean_binned_linpred, y=mean_binned_residuals)) +
+       geom_point() + labs(x="mean binned linear predictor fitted values",
+                           y="mean binned deviance residuals")
+```
+
+That plot looks fine --- it shows nothing that should raise any concerns - the variance of the deviance residuals appears constant, and they are evenly distributed with none of the residuals taking any large values (deviance residual values higher than about 2 often indicate an influential outlier).
+
+The `binnedplot()` function in the _arm_ package by Gelman and Hill also produces a similar plot:
+
+```{r logistic-diagnostics-f, echo=TRUE, exercise=TRUE, fig.width=8, fig.height=8, output.width="90%", exercise.setup="binary-set-up", message=FALSE, warning=FALSE}
+library(arm)
+binnedplot(predict(logmod), residuals(logmod))
+```
+
+That plot is not identical but it is basically showing the same thing.
+
+We should also plot the residuals versus the values of the predictors, as we do for linear models, but we'll skip that step here in the interests of brevity.
+
+## Detecting unusual observations
+
+A Q-Q plot of the deviance residuals for a logistic model is not much use:
+
+```{r logistic-diagnostics-g, echo=TRUE, exercise=TRUE, fig.width=8, fig.height=8, output.width="90%", exercise.setup="binary-set-up", message=FALSE, warning=FALSE}
+qqnorm(residuals(logmod))
+```
+
+There's an obvious discontinuity between two groups, representing the zeros and the ones in the outcome variable. But there is no reason to expect the residuals to be normally distributed --- as we mentioned above, the variance of a binary variable is equal to $p(1 - p)$ and thus large residuals are expected where $y_i = 1$ when $\widehat{p}_i$ is small and when $y_i = 0$ when $\widehat{p}_i$ is close to 1.
+
+However, leverages still work, and we can usefully examine the hat values from a logistic model just as we do for a linear model:
+
+```{r logistic-diagnostics-h, echo=TRUE, exercise=TRUE, fig.width=8, fig.height=8, output.width="90%", exercise.setup="binary-set-up", message=FALSE, warning=FALSE}
+halfnorm(hatvalues(logmod))
+```
+
+We can inspect the data for the two labelled outlying points:
+
+```{r logistic-diagnostics-i, echo=TRUE, exercise=TRUE, fig.width=8, fig.height=8, output.width="90%", exercise.setup="binary-set-up", message=FALSE, warning=FALSE}
+wcgs[hatvalues(logmod) > 0.025,c("chd", "sdp", "cigs")]
+```
+
+As can be seen, neither of these cases developed heart disease, but one smoked a lot of cigarettes per day, and the other had very high systolic BP. Given that they are only two cases out of over 3,000, they probably don't affect the model fit very much, but excluding them could be done as a [_sensitivity analysis_](https://en.wikipedia.org/wiki/Sensitivity_analysis).
+
+## Summary
+
+We have gone through the basics of fitting and assessing logistic models. In the next chapter we will look at a few more aspects of logistic models.
+
+
+

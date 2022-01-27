@@ -1,0 +1,566 @@
+---
+title: "HDAT9600 Survival analysis 1"
+tutorial:
+  id: "au.edu.unsw.cbdrh.hdat9600.tutorials.sa1"
+fig_width: 6 
+fig_height: 4
+output:
+  learnr::tutorial:
+    progressive: false
+    allow_skip: true
+    css: css/tutorials.css
+runtime: shiny_prerendered
+description: "Introducing survival analysis: non-parametric methods"
+---
+
+![](images/UNSW_2017_Big_Data_landscape.jpg){width="75%"}
+
+
+```{r setup, include=FALSE}
+library(learnr)
+knitr::opts_chunk$set(echo = FALSE)
+
+library(learnr)
+library(eha)
+library(stringi)
+library(bshazard)
+library(survminer)
+
+```
+
+```{r prepare-exercises}
+data(oldmort)
+
+oldmort$fu_time <- oldmort$exit - oldmort$enter
+oldmort$start <- oldmort$birthdate + oldmort$enter
+oldmort$stop <- oldmort$birthdate + oldmort$exit
+
+deaths <- oldmort[oldmort$event == TRUE,]
+
+cox.sex <- coxph( Surv(enter, exit, event) ~ sex, data = oldmort) 
+cox.mv1 <- coxph( Surv(enter, exit, event) ~ sex + civ + region, data = oldmort) 
+oldmort$Y <- Surv(oldmort$enter - 60, oldmort$exit - 60, oldmort$event)
+w.mv1 <- phreg(Y ~ sex + civ + region, data = oldmort)
+g.mv1 <- phreg(Y ~ sex + civ + region, data = oldmort, dist = "gompertz")
+pch10.mv1 <- phreg(Y ~ sex + civ + region, data = oldmort, dist = "pch", cuts = c(10, 20, 30))
+pch5.mv1 <- phreg(Y ~ sex + civ + region, data = oldmort, dist = "pch", cuts = c(5, 10, 15, 20, 25, 30, 35))
+pch4.mv1 <- phreg(Y ~ sex + civ + region, data = oldmort, dist = "pch", cuts = c(4, 8, 12, 16, 20, 24, 28, 32, 36))
+
+```
+
+
+## Introduction
+
+<span class="copyright">© Copyright 2021 UNSW Sydney. All rights reserved except where otherwise stated.</span>
+
+This chapter, and the one to follow, are based on the textbook "_Event history analysis with R_" by Göran Broström. The book offers multiple practical examples of survival data analysis with R. You are not required to read it, however if you wish to learn more about the topic of survival (time to event) modelling, you are welcome to consult the text. 
+
+The survival analysis section is split across two chapters.
+
+
+## 1. Introduction to survival analysis {data-progressive=TRUE}
+### **1.1 What is survival analysis?**
+
+In survival analysis we are interested in analysing data where the outcome variable is *time to an event*, measured from a well-defined starting point. The event of interest may for example be death and the starting point birth. In this case, the event occurrence is generally referred to as *failure* and the time until the event occurrence as *survival time*, hence the name survival analysis. However, it is possible to study a wide range of events, such as disease incidence or hospitalisation. Therefore, several synonyms for survival analysis --- such as failure time analysis, time-to-event analysis, event time or event history analysis --- and survival time --- such as failure time, time-to-event, event time, occurrence time or incidence time --- exist and are used interchangeably.
+
+Survival models model the influence of variables of interest on time-to-event. They are usually applied to analyse data from prospective cohort studies in which a cohort is recruited and followed up from the start of the study until either the occurrence of the event or the end of the follow-up.
+
+**Question**: Why can't previously covered models such as logistic or linear models be used to properly analyse survival data?
+
+*	Logistic models can only account for the occurrence of the event of interest (yes/no), with the timing of the event ignored
+*	Survival times are not likely to be normally distributed
+*	Occurrence and timing of the event is not always observed:
+    +	Follow-up may end before the occurrence of the event
+    +	A person may be lost to follow-up (e.g. moving interstate or overseas)
+    +	Where the event is not inevitable, such as death, persons may be removed from follow up due to competing risks (e.g. in a study on uterine cancer incidence women may die or have a hysterectomy (removal of uterus) first)
+
+Survival data is *dynamic* in nature and properly accounting for the time perspective involved is essential. Specification and estimation of models for the underlying survival time distribution is an important issue in survival analysis.
+
+The last bullet point summarises three different cases of incomplete observations, common in survival data, due to different types of *right censoring*. Thus, for each person either the event time or the censoring time is observed and for the censored observations it is only known that the event time is greater than the censoring time. Specific survival models, that can handle the censored observations, are required for survival analysis.
+
+
+## 1.2 Survival analysis example
+
+As an illustrative example, let's look at a data set [oldmort](https://www.rdocumentation.org/packages/eha/versions/2.5.1/topics/oldmort) found in the [eha](https://cran.r-project.org/web/packages/eha/eha.pdf) package in R (Broström 2017).
+
+### **Dataset description**
+
+The data set `oldmort` in `eha` contains survival data from the parish Sundsvall in the mid-east of 19th century Sweden. This was one of the largest sawmill districts in Europe in the late 19th century. The town Sundsvall is located in the district, which also contains a rural area, where farming was the main occupation. The name `oldmort` is an acronym for old age mortality. The source is digitised information from historical parish registers and church books. More information about this can be found at the web page of [the Demographic Data Base at Umeå University (DDB)](https://www.umu.se/en/centre-for-demographic-and-ageing-research/databases/).
+
+The sampling was done as follows: Every person who was present and alive and 60 years of age or above any time between 1 January 1860 and 31 December 1880 was followed from the entrance age until the age when last seen, determined by death, out-migration, or surviving until 31 December 1880. Those born during the eighteenth century would enter observation at an age above 60, given that they lived long enough, that is, at least until 1 January 1860.
+
+Below, we load the dataset [`oldmort`](https://www.rdocumentation.org/packages/eha/versions/2.5.1/topics/oldmort) found in [`eha`](https://cran.r-project.org/web/packages/eha/eha.pdf) using the [`data()`](https://www.rdocumentation.org/packages/utils/versions/3.5.1/topics/data) function and look at the first few lines of this dataset using the [`head()`](https://www.rdocumentation.org/packages/utils/versions/3.5.1/topics/head) function. Please note that when not running the code in _learnr_, where the necessary packages have been installed and loaded into the workspace of R in the beginning of the document, you first need to  install the [`eha`](https://cran.r-project.org/web/packages/eha/eha.pdf) package (**install.packages("eha")**) and load it into the workspace in R (**library(eha)**). Note that loading the [`eha`](https://cran.r-project.org/web/packages/eha/eha.pdf) package also loads the [`survival`](https://cran.r-project.org/web/packages/survival/survival.pdf) package. The [`survival`](https://cran.r-project.org/web/packages/survival/survival.pdf) package includes the core survival analysis functions. It is one of the core packages that are installed when the R is installed so you don't need to separately install it. However, you need to load it, like any other library, if you want to use it. As you can see from the [`eha`](https://cran.r-project.org/web/packages/eha/eha.pdf) package description, it further enhances the [`survival`](https://cran.r-project.org/web/packages/survival/survival.pdf) package.
+
+```{r 1_1, exercise=TRUE, exercise.eval=FALSE}
+# loading the dataset oldmort found in eha
+data(oldmort)
+
+# looking at the first few lines of oldmort
+head(oldmort)
+
+```
+
+There are 13 variables in [`oldmort`](https://www.rdocumentation.org/packages/eha/versions/2.5.1/topics/oldmort) and their definitions and interpretations are outlined in the table below:
+
+| **Variable name**   | **Variable description**                 |
+|:------------|:-------------------------------------------------------------------------|
+| id          | A unique id number for each individual|
+| enter       | The start age for this record. For instance, in row No. 1, individual No. 765000603 enters under observation at age 94.51. We know the start date of the study (1 January 1860) and birth date of the individuals. Age is calculated as the number of days elapsed since birth (until the start of the study), and this number is then divided by 365.25 to get age in years. The denominator is the average length of a year, taking into account that (almost) every fourth year is 366 days long.|
+| exit        | The stop age for this record. Invividual No. 765000603 exits at age 95.813. |
+| event       | A logical variable (taking values TRUE or FALSE) indicating if the exit is a death (TRUE) or not (FALSE). For our first individual, the value is TRUE, indicating that she died at the age of 95.813 years |
+| birthdate   | The birth date expressed as the time (in years) elapsed since January 1, year 0 (which by the way does not exist). For instance, the (pseudo) date 1765.490 is really June 27, 1765. The fraction 0.490 is the fraction of the year 1765 that elapsed until the birth of individual No.765000603 |
+| m.id        | Mother's id. The symbol NA stands for Not Available. The oldest people in the data set typically have no links to parents  |
+| f.id        | Father's id.See m.id above |
+| sex         | A categorical variable with the levels female and male |
+| Civ         | Civil status. A categorical variable with three levels; unmarried, married, and widow(er) |
+| ses.50      | Socio-economic status (SES) at age 50 based on occupation information. Categorical variable with 5 levels: farmer, lower, middle, upper, unknown. There is a large proportion of unknown values in this variable. This is quite natural, because this variable was of secondary interest to the record holder (the priest in the parish). The occupation is only noted in connection to a vital event in the family (such as a death, birth, marriage, or in- or out-migration) |
+| birthplace  | A categorical variable with three categories; parish, region and remote |
+| imr.birth   | A variable that measures the infant mortality rate in the birth parish at the time of birth (per cent) |
+| region      | Present geographical area of residence. The parishes in the region are grouped into three regions: Sundsvall town, rural, and industry. The industry is the sawmill one, which grew rapidly in this area during the late part of the 19th century. The Sundsvall area was, in fact, one of the largest sawmill areas in Europe at this time|
+
+Below, we summarise our data to get a better idea of it using the [`nrow()`](https://www.rdocumentation.org/packages/base/versions/3.5.1/topics/nrow) and [`summary()`](https://www.rdocumentation.org/packages/base/versions/3.5.1/topics/summary) functions:
+
+```{r 1_2, exercise=TRUE, exercise.eval=FALSE, exercise.setup = "prepare-exercises"}
+# checking how many individuals there are in the dataset
+nrow(oldmort)
+
+# summarising the data
+summary(oldmort)
+
+```
+
+### **Basic concepts**
+
+Optimally, to study old age mortality, defined here as mortality among those aged 60 years or older, in Sundsvall, everyone should be followed from their sixtieth birthday until death. In reality, such a long follow-up is often not feasible but a certain study period must be determined. In this study, the study period or *follow-up time* was 20 years, from 1 January 1860 to 31 December 1880.
+
+Follow-up time is not readily available in the data, but we can calculate it as below:
+
+```{r 1_3, exercise=TRUE, exercise.eval=FALSE, exercise.setup = "prepare-exercises"}
+# adding the length of follow up to the dataset
+oldmort$fu_time <- oldmort$exit - oldmort$enter
+head(oldmort)
+summary(oldmort)
+
+```
+
+The outcome variable is the time elapsed from the time origin to the time at which the event of interest (death) occurs. The triplet **(enter, exit, event)** represents that. It can be called the *survival object*.
+
+The first, and the oldest, individual in the dataset was born 27 June 1765, and so almost 95 years of age when the study started. Suppose that this woman had died at age 94; then she had not been in  the study at all. This phenomenon is called *delayed entry*, or *left truncation* (at age 95). In the analysis, we must condition on the fact that she was alive at 1 January 1860, i.e. survived up to the age **enter**. Otherwise our results might be biased due to such length-biased sampling.
+
+Most individuals in the data set did not die by 31 December 1880, so for them the event of interest did not occur and we do not know their time of death but only that it was after the end of the study. Such individuals are said to be *right censored*, as explained before. The later the people turned 60 during the study period and entered the study the higher their probability of being right censored. Individuals included in the study could also be right censored due to out-migration during the study. Discarding information on right censoring may also introduce bias. However, it is important to mention that in survival analysis, the censoring is assumed to be non-informative, i.e. individuals who are censored are assumed to have the same probability of experiencing an event as individuals who remain in the study. Informative censoring is analogous to non-ignorable missing data, which will bias the analysis. Exploring patterns of censoring may indicate whether an assumption of non-informative censoring is reasonable. If informative censoring appears to be present, sensitivity analyses (e.g. best-case and worst-case scenarios) can be used to measure its potential impact.
+
+### **Time scales**
+
+Two time scales are often present in survival analysis: age and calendar time. For example in the old age mortality dataset, age time scale was demonstrated by the variables **(enter, exit)**. The calendar time scale, from 1 January 1860 to 31 December 1880, could also be used and is demonstrated below by the variables **(start, stop)**.    
+
+```{r 1_4, exercise=TRUE, exercise.eval=FALSE, exercise.setup = "prepare-exercises"}
+# adding the years each individual entered and exited the study to the dataset
+oldmort$start <- oldmort$birthdate + oldmort$enter
+oldmort$stop <- oldmort$birthdate + oldmort$exit
+head(oldmort)
+summary(oldmort)
+
+```
+
+In demographic applications age is often a natural time scale.  That is, time is measured from birth. In the old age mortality data, time was measured from age 60 instead. When evaluating risk factors for survival, age is often the most natural time scale as well because age is typically the strongest risk factor for mortality.
+
+**Question** What are some of the research questions that could be answered by analysing this dataset? 
+Here are some examples: 
+
+* What is the average survival time among those 60 years of age or older? Is it different for women and men?
+* What factors are associated with length of life?
+    * Do women life longer than men?
+    * Do those married live longer than those unmarried or widowed?
+    * Etc.
+    
+    
+## 1.3 Fundamental functions in survival analysis
+
+### **Probability density function (pdf)**
+
+Let $T$ be a random variable that denotes the survival time. The probability of observing $T$ at time $t$ relative to all other survival times is given by the probability density function (pdf), or $f(t)$. 
+
+Often we do not know *a priori* the distribution generating our observed survival times, but we can get an idea of what it looks by graphically inspecting the data. Below we show the histogram and the estimated pdf of follow-up times and age at death in the old age mortality dataset, from which all censored observations have been removed for now (we will present methods for handling censored observations in the following sections). We use the [`hist()`](https://www.rdocumentation.org/packages/graphics/versions/3.5.1/topics/hist) function to compute a histogram of the given data values, [`density()`](https://www.rdocumentation.org/packages/stats/versions/3.5.1/topics/density) function to compute density estimates and [`lines()`](https://www.rdocumentation.org/packages/graphics/versions/3.5.1/topics/lines) function to join the estimates with line segments.
+
+```{r 1_5, exercise=TRUE, exercise.eval=FALSE, exercise.setup = "prepare-exercises"}
+# removing all censored observations from the old age mortality dataset
+deaths <- oldmort[oldmort$event == TRUE,]
+
+# histogram of all follow-up times to death 
+hist(deaths$fu_time, main = "Distribution of follow-up time", xlab = "Follow-up time")
+# correspondence between histogram and pdf
+hist(deaths$fu_time, main = "Distribution of follow-up time", xlab = "Follow-up time", prob = TRUE) # prob = TRUE for probabilities not counts
+lines(density(deaths$fu_time))
+
+# histogram of age at death
+hist(deaths$exit, main = "Distribution of age at death", xlab = "Age")
+# correspondence between histogram and pdf
+hist(deaths$exit, main = "Distribution of age at death", xlab = "Age", prob = TRUE) # prob = TRUE for probabilities not counts
+lines(density(deaths$exit))
+
+```
+As you can see from the latter graphs, density functions are essentially histograms comprised of bins of very small widths. We can see that shorter survival times and times of death around 75 years of age are more probable.
+
+### **Cumulative distribution function (cdf)**
+
+The probability of observing $T$ less than or equal to time $t$,  $\Pr{} {(T \leq t)}$, is given by the cumulative distribution function (cdf), $F(t)$. We define the cumulative distribution function as:
+
+$$
+F(t) = \int_0^t f(u) \,du
+$$
+
+Thus, integrating the pdf over range of survival times gives the probability of observing $T$ in that range.
+
+We can obtain empirical cdf values and graph an estimate of the cdf using the [`ecdf()`](https://stat.ethz.ch/R-manual/R-devel/library/stats/html/ecdf.html) function:
+
+```{r 1_6, exercise=TRUE, exercise.eval=FALSE, exercise.setup = "prepare-exercises"}
+# follow-up time
+# obtain empirical cdf value
+fu_time.ecdf = ecdf(deaths$fu_time)
+# plotting empirical cumulative distribution
+plot(fu_time.ecdf, main = "Empirical cumulative distribution", xlab = "Follow-up time")
+
+# age at death
+# obtain empirical cdf value
+exit.ecdf = ecdf(deaths$exit)
+# plotting empirical cumulative distribution
+plot(exit.ecdf, main = "Empirical cumulative distribution", xlab = "Age at death")
+
+```
+
+In the graph above we can see that the probability of dying before 5 years of follow-up is just under 50%, and from the graph below we see that the probability of dying by 70 years of age is about 40%. In intervals where event times are more probable, the cdf will increase faster (i.e. steeper).
+
+We can see this even more clearly by calculating the median follow-up time using the [`summary()`](https://www.rdocumentation.org/packages/base/versions/3.5.1/topics/summary) function and plotting it in the graph using [`abline()`](https://stat.ethz.ch/R-manual/R-devel/library/graphics/html/abline.html) and [`legend()`](https://www.rdocumentation.org/packages/PerformanceAnalytics/versions/1.5.2/topics/legend) functions:
+
+```{r 1_7, exercise=TRUE, exercise.eval=FALSE, exercise.setup = "prepare-exercises"}
+# follow-up time
+# obtain empirical cdf value
+fu_time.ecdf = ecdf(deaths$fu_time)
+# plotting empirical cumulative distribution
+plot(fu_time.ecdf, main = "Empirical cumulative distribution", xlab = "Follow-up time")
+
+# summary of the survival times
+summary(deaths$fu_time)
+# mark the median
+abline(v = 5.358, h = 0.5)
+# add a legend
+legend(5.5, 0.45, 'median = 5.4')
+
+# age at death
+# obtain empirical cdf value
+exit.ecdf = ecdf(deaths$exit)
+# plotting empirical cumulative distribution
+plot(exit.ecdf, main = "Empirical cumulative distribution function", xlab = "Age at death")
+
+# summary of the survival times
+summary(deaths$exit)
+# mark the median
+abline(v = 73.18, h = 0.5)
+# add a legend
+legend (75, 0.45, 'median = 73')
+
+```
+
+### **Survival function**
+
+The survival function, $S(t)$, describes the probability of surviving past time $t$, or $\Pr{} {(T \gt t)}$. 
+Thus, a simple transformation of the cumulative distribution function produces the survival function:
+
+$$
+S(t)=1-F(t)
+$$
+
+We can plot the estimate of $S(t)$ using the [`survfit()`](https://www.rdocumentation.org/packages/survival/versions/2.11-4/topics/survfit) and [`plot.survfit()`](https://stat.ethz.ch/R-manual/R-devel/library/survival/html/plot.survfit.html) functions in the [`survival`](https://cran.r-project.org/web/packages/survival/survival.pdf) package. Note that the function [`Surv()`](https://stat.ethz.ch/R-manual/R-devel/library/survival/html/Surv.html) in the survival package creates the survival object.  
+
+```{r 1_8, exercise=TRUE, exercise.eval=FALSE, exercise.setup = "prepare-exercises"}
+# plotting survival distribution, with follow-up time on the x axis
+deaths.surv1 <- survfit( Surv(fu_time, event) ~ 1, data = deaths) 
+plot(deaths.surv1, main = "Survival function", xlab = "Follow-up time", conf.int=FALSE)
+
+# plotting survival distribution, with age on the x axis
+# this is the correct notation to use with left-truncated data
+deaths.surv2 <- survfit( Surv(enter, exit, event) ~ 1, data = deaths) 
+# shows clearly the left truncation
+plot(deaths.surv2, main = "Survival function", xlab = "Age", conf.int=FALSE)
+# same plot with x axis starting from 60 years of age
+plot(deaths.surv2, xlim = c(60, 100), main = "Survival function", xlab = "Age", conf.int=FALSE)
+
+```
+
+We see that the first graph is reflection of the cumulative distribution function and that the probability of surviving beyond 5 years of follow-up is just over 50%. The second graph clearly shows the left truncation present in the data.
+
+### **Hazard function**
+
+The hazard function has the following relationship with the $f(t)$ and $S(t)$:
+
+$$
+h(t) = \frac {f(t)} {S(t)}
+$$ 
+
+The hazard function thus describes the relative likelihood of the event occurring at time $t$, $f(t)$, conditional on the individual surviving up to that time $t$, $S(t)$. 
+
+We can estimate the hazard function using the `bshazard()`() function in the [`bshazard`](https://cran.r-project.org/web/packages/bshazard/bshazard.pdf) package. 
+Please note that when not running the code in _learnr_, where the necessary packages have been installed and loaded into the workspace of R in the beginning of the document, you first need to install the [`bshazard`](https://cran.r-project.org/web/packages/bshazard/bshazard.pdf) package (**install.packages("bshazard")**) and load it into the workspace in R (**library(bshazard)**). 
+
+```{r 1_9, exercise=TRUE, exercise.eval=FALSE, exercise.setup = "prepare-exercises"}
+# plotting hazard function, with follow-up time on the x axis
+deaths.haz <- bshazard( Surv(fu_time, event) ~ 1, data = deaths) 
+plot(deaths.haz, main = "Hazard function", xlab = "Follow-up time")
+
+# plotting hazard distribution, with age on the x axis
+deaths.haz2 <- bshazard( Surv(enter, exit, event) ~ 1, data = deaths) 
+plot(deaths.haz2, main = "Hazard function", xlab = "Age")
+
+```
+
+We see an increasing hazard rate at an increasing follow-up time or age, as can be expected for mortality.
+
+### **Cumulative hazard function**
+
+Cumulative hazard function,  $H(t)$, is calculated by integrating the hazard function over an interval of time:
+
+$$
+H(t) = \int_0^t h(u) \,du
+$$
+
+As $h(t)$ described the rate at which failures occur at time $t$, the cumulative hazard function, which cumulates the hazards over time, can be interpreted as the expected number of failures over time interval $[0, t]$. 
+
+We can plot the cumulative hazard function using the [`survfit()`](https://www.rdocumentation.org/packages/survival/versions/2.11-4/topics/survfit) and [`plot.survfit()`](https://stat.ethz.ch/R-manual/R-devel/library/survival/html/plot.survfit.html) functions in the [`survival`](https://cran.r-project.org/web/packages/survival/survival.pdf) package:
+
+```{r 1_10, exercise=TRUE, exercise.eval=FALSE, exercise.setup = "prepare-exercises"}
+# plotting cumulative hazard function, with follow-up time on the x axis
+deaths.cumhaz1 <- survfit( Surv(fu_time, event) ~ 1,data = deaths) 
+plot(deaths.cumhaz1, fun="cumhaz", main = "Cumulative hazard function", xlab = "Follow-up time", conf.int=FALSE)
+
+# plotting cumulative hazard distribution, with age on the x axis
+deaths.cumhaz2 <- survfit( Surv(enter, exit, event) ~ 1,data = deaths) 
+plot(deaths.cumhaz2, fun="cumhaz", main = "Cumulative hazard function", xlab = "Age", conf.int=FALSE)
+# same plot with x axis starting from 60 years of age
+plot(deaths.cumhaz2, xlim = c(60, 100), fun="cumhaz", main = "Cumulative hazard function", xlab = "Age", conf.int=FALSE)
+
+```
+
+We see an increasing cumulative hazard at an increasing follow-up time or age, reflecting the larger hazard rate during this period.
+
+Because 
+
+$$
+f(t) = - \frac {\partial S(t)} {\partial t}
+$$
+we can rewrite 
+
+$$
+h(t) = \frac {f(t)} {S(t)}
+$$
+as 
+
+$$h(t) = - \frac {\frac {\partial S(t)} {\partial t}} {S(t)}$$
+
+Now, if we integrate from 0 to $t$ using the boundary condition $S(0)=1$, this differential equation has a solution and a formula for the probability of surviving up to time $t$ is obtained:  
+
+$$
+\begin{align}
+S(t) &= \exp [- \int_0^t h(u) \,du] \\
+     & \\
+     &= \exp [- H(t)]
+\end{align}
+$$
+    
+We can also derive the following relationships:    
+
+$$
+F(t) = 1 - \exp [-H(t)]
+$$
+  
+and
+  
+$$
+f(t) = h(t) \exp [-H(t)]
+$$
+	
+From these equations we can see that when the Survival function $S(t)$ is at its maximum (at the beginning of analysis time), the cumulative hazard function $H(t)$ is at its minimum. As time passes, $S(t)$ approaches its minimum, while $H(t)$ approaches its maximum. $S(t)$ and $H(t)$ thus have a simple monotonic relationship. We would also expect the probability density function $f(t)$ to be high when the hazard rate $h(t)$ is high and when $H(t)$ is low. Thus, we would expect a lot of failures in a given time interval if a) the hazard rate is high; and b) there are still a lot of individuals at risk.
+
+
+
+## 2. Non-parametric methods {data-progressive=TRUE}
+
+We typically begin survival analysis by exploring our data (see Section 1) and the overall survival experience. Non-parametric methods, that allow estimating the fundamental functions non-parametrically, can be used to provide the first look at the survival experience. They are appealing because they can handle censored observations but make no assumptions about the true underlying distribution.
+
+Non-parametric methods include the Kaplan-Meier (product-limit) estimator of the survival function and the Nelson-Aalen estimator of the cumulative hazard function.
+
+## 2.1 Kaplan-Meier estimator
+
+The Kaplan-Meier estimator of the survival function is calculated as:
+
+$$
+\begin{align}
+\widehat{S} (t) &= \Pi_{t_{j}<t} \frac {n_{j}-d{j}} {n_j} \\
+                & \\
+                &= \Pi_{t_{j}<t} [1-\widehat{h}(t_j)]
+\end{align}
+$$
+
+where $d_j$ is the number of individuals who failed out of $n_j$ individuals at risk at time $t_j$. Thus, each term in the product is the probability of surviving beyond time $t_j$, given the individual has survived up to time $t_j$ (i.e. the conditional probability of survival beyond time $t_j$). The survival function estimate of the probability of survival beyond time $t$ from the onset of risk (i.e. the unconditional probability of survival beyond time $t$) is then obtained by multiplying the conditional probabilities up to time $t$. Note that the observations that are censored after a given time point contribute to the survival function until they drop out of the study, but are not counted as a failure. Thus, the censored observations do not change the survival estimates when censoring occurs, only the number at risk. If the observations with the longest follow-up are censored, the survival function will not reach 0. Instead, the survival function will remain at the survival probability estimated at the previous interval. 
+
+We can obtain the Kaplan-Meier estimate of the survival function in the old age mortality dataset as numbers using the [`survfit()`](https://www.rdocumentation.org/packages/survival/versions/2.11-4/topics/survfit) and [`summary.survfit()`](https://stat.ethz.ch/R-manual/R-devel/library/survival/html/summary.survfit.html) functions, and plot it using the [`plot.survfit()`](https://stat.ethz.ch/R-manual/R-devel/library/survival/html/plot.survfit.html) function in the [`survival`](https://cran.r-project.org/web/packages/survival/survival.pdf) package:
+
+```{r 2_1, exercise=TRUE, exercise.eval=FALSE, exercise.setup = "prepare-exercises"}
+# Kaplan-Meier estimate can be obtained as numbers by using survfit 
+om.fit <- survfit( Surv(enter, exit, event) ~ 1, data = oldmort) 
+summary(om.fit)
+
+# plotting Kaplan-Meier estimate
+plot(om.fit, xlim = c(60, 100), main = 'Kaplan-Meier estimate of survival function', xlab = 'Age')
+
+```
+
+Each row in the output table corresponds to an interval of time. During the first time interval from the start of the study to the first event time we have 3223 individuals at risk (n.risk) and at first event time 3 deaths occur (n.event). The first survival probability, i.e. the probability of surviving beyond that time, in the output can be obtained as $\widehat{S}(1)$ = 3223-3/3223 = 0.99907 (= survival) based on the Kaplan-Meier estimator. The second survival probability in the output can be obtained as $\widehat{S}(2)$ = 3223-3/3223 x 3220-1/3220 = 0.99876, and so on. 
+
+The Kaplan-Meier plot allows us to see how the survival function changes over time. When an individual dies at a particular time point, the Kaplan-Meier function drops, whereas in between failure times the graph remains flat. This is easier to see if we plot the Kaplan-Meier estimate for a random sample of 50 observations from the old age mortality dataset:
+
+```{r 2_2, exercise=TRUE, exercise.eval=FALSE, exercise.setup = "prepare-exercises"}
+# random sample of 50 observations from the old age mortality dataset
+indx <- sample(nrow(oldmort), size = 50, replace = FALSE)
+rsa <- oldmort[indx, ]
+rsa
+rsa.fit <- survfit( Surv(enter, exit, event) ~ 1, data = rsa)
+summary(rsa.fit)
+plot(rsa.fit, xlim = c(60, 100), main = 'Kaplan-Meier estimate of survival function', xlab = 'Age')
+
+```
+
+The dotted lines around the survival curve represents the 95% confidence interval.
+
+
+## 2.2 Nelson-Aalen estimator
+
+The Nelson-Aalen estimator of the cumulative hazard function is calculated as:
+
+$$
+\begin{align}
+\widehat{H} (t) &= \sum_{t_{j}<t} \frac {d{j}} {n_j} \\
+                & \\
+                &= \sum_{t_{j}<t} \widehat{h}(t_j)
+\end{align}
+$$
+
+where $d_j$ is the number of individuals who failed out of $n_j$ individuals at risk at time $t_j$. The cumulative hazard function estimate is thus calculated by summing the proportion of those at risk who failed in each interval up to time $t$.
+
+We can plot the Nelson-Aalen estimate of the cumulative hazard function in the following way:
+
+```{r 2_3, exercise=TRUE, exercise.eval=FALSE, exercise.setup = "prepare-exercises"}
+# plotting Nelson-Aalen estimate
+om.fit <- survfit( Surv(enter, exit, event) ~ 1, data = oldmort) 
+summary(om.fit)
+plot(om.fit, xlim = c(60, 100), fun="cumhaz", main = "Nelson-Aalen estimate of cumulative hazard function", xlab = "Age")
+
+```
+
+From the output we can obtain $\widehat{H}(1)$ = 3/3223 = 0.00093, $\widehat{H}(2)$ = 3/3223 + 1/3220 = 0.00124, and so on based on the Nelson-Aalen estimator.
+
+Again it is easier to see the Nelson-Aalen step function if we plot it for a random sample of 50 observations from the old age mortality dataset:
+
+```{r 2_4, exercise=TRUE, exercise.eval=FALSE, exercise.setup = "prepare-exercises"}
+# random sample of 50 observations from the old age mortality dataset
+indx <- sample(nrow(oldmort), size = 50, replace = FALSE)
+rsa <- oldmort[indx, ]
+rsa.fit <- survfit( Surv(enter, exit, event) ~ 1, data = rsa)
+summary(rsa.fit)
+plot(rsa.fit, xlim = c(60, 100), fun = "cumhaz", main = 'Nelson-Aalen estimate of cumulative hazard function', xlab = 'Age')
+
+```
+
+
+## 2.3 Calculating survival times
+
+We are often interested in knowing for example the mean or median survival time. Because survival data is typically not symmetrically distributed but rather positively skewed, medians are often a better indicator of an "average" survival time. Also, if the last observation(s) is not a death, then the survival curve estimate does not go to zero and the mean is undefined.
+
+We can obtain the numerical estimate of median and plot it in the survival curve by using the [`print.survfit()`](https://stat.ethz.ch/R-manual/R-devel/library/survival/html/print.survfit.html) and [`plot.survfit()`](https://stat.ethz.ch/R-manual/R-devel/library/survival/html/plot.survfit.html) functions in the [`survival`](https://cran.r-project.org/web/packages/survival/survival.pdf) package:
+
+```{r 2_5, exercise=TRUE, exercise.eval=FALSE, exercise.setup = "prepare-exercises"}
+om.fit <- survfit( Surv(enter, exit, event) ~ 1, data = oldmort) 
+
+# get the mean and median survival times
+print(om.fit, print.rmean = TRUE)
+
+# plot the median survival time
+plot(om.fit, xlim = c(60, 100), main = 'Kaplan-Meier estimate of survival function', xlab = 'Age')
+abline(a = 0.5, b = 0)
+
+```
+
+We can see that half of the people survive beyond 76 years.
+
+Please note that the mean estimate is restricted mean survival time. By default, it is calculated assuming that the longest survival time is equal to the longest survival time in the data (even though the longest survival time in the data may be censored). The mean survival time will thus depend on what value is chosen for the maximum survival time.
+
+
+## 2.4 Comparing survival functions using non-parametric tests
+
+Suppose that you suspect that the chance of survival is not the same among some of the groups in your study, for instance men die sooner than women. By plotting the Kaplan-Meier survival curves for each group, it is possible to visually evaluate whether there appears to be a difference in survival between the groups. We can also use non-parametric methods, such as the log-rank test, to test for equality of the survival functions among groups of interest. To test the survival difference by sex for instance, the null hypothesis is
+
+$$
+\begin{align}
+H_0: & \quad S_1(t) = S_2(t) \qquad \textrm{for all} \ t_j<t \\
+H_1: & \quad S_1(t) \ne S_1(t) \qquad \textrm{for at least some} \ t_j<t 
+\end{align} 
+$$
+
+where  $t$ is the largest time at which both of the groups have at least one individual at risk.
+The log-rank test of equality of the survival function is given by:
+
+$$
+\begin{align}
+Q &= \frac {\sum_{i}^I (d_{ij} - \widehat{e}_{ij})} {\sum_{i}^I \widehat{v}_{ij}} \\
+  & \\
+  &= \frac {\sum_{i}^I (d_{ij} - n_{ij} \frac {d_j} {n_j})} {\sum_{i}^I \widehat{v}_{ij}}
+\end{align}
+$$ 
+
+where $d_{ij}$ is the observed number of failures in stratum $i$ at time $t_j$, $\widehat{e}_{ij}$ is the expected number of failures in stratum $i$ at time $t_j$, and $\widehat{v}_{ij}$ is the estimator of the variance of $d_{ij}$. The main idea is to compare the number of events in each group to what would be expected if the null hypothesis were true, i.e. assuming the same survival function in each stratum. In other words, if all strata have the same survival function, then we expect the same proportion to die in each interval. If these proportions systematically differ among strata across time, then the Q statistic, which follows the $\chi^2$ distribution, will be large and the null hypothesis of no difference among strata is more likely to be rejected.
+
+There is a function [`survdiff()`](https://stat.ethz.ch/R-manual/R-devel/library/survival/html/survdiff.html) in the [`survival`](https://cran.r-project.org/web/packages/survival/survival.pdf) package for carrying out a log-rank test. However this function does not work with left-truncated data. We can alternatively carry out the log-rank test using the [`coxph()`](https://stat.ethz.ch/R-manual/R-devel/library/survival/html/coxph.html) function in the [`survival`](https://cran.r-project.org/web/packages/survival/survival.pdf) package:
+
+```{r 2_6, exercise=TRUE, exercise.eval=FALSE, exercise.setup = "prepare-exercises"}
+# comparing survival functions between men and women
+
+# plot the survival functions by sex
+om.fitbysex <- survfit( Surv(enter, exit, event) ~ sex, data = oldmort) 
+plot (om.fitbysex, col=c("blue", "red"), xlim = c(60, 100), main = 'Kaplan-Meier estimate of survival function', xlab = 'Age') 
+
+# get the median survival times by sex
+print(om.fitbysex) 
+
+# 2-sample log-rank test
+om.fitbysex2 <- coxph( Surv(enter, exit, event) ~ sex, data = oldmort) 
+summary(om.fitbysex2)
+
+```
+
+In the graph of the Kaplan-Meier estimator stratified by gender and the outputted median survival times by gender, it appears that males generally have a worse survival experience. This is reinforced by the significant log-rank test of equality of the survival function (_p_-value = 0.00002), meaning that the null hypothesis of no difference in survival between men and women is rejected in favour of the conclusion that survival differs between genders.
+
+<br><br>
+
+Non-parametric methods allow us to describe survival data, and plot and compare both survival and cumulative hazard functions with respect to a categorical covariate of interest. However, they do not allow us to estimate the magnitude of the effects of covariates or investigate how several covariates simultaneously influence survival. Semi-parametric and parametric methods covered in the next chapter, allow us to do this.
+
+
+
+## References
+
+Breslow N. Covariance analysis of censored survival data. Biometrika 1974; 30: 89–99.
+
+Broström G. (2012). Event history analysis with R. Chapman & Hall/CRC, 2012.
+
+Collett D. Modelling survival data in medical research, Second edn. Chapman & Hall/CRC, 2003.
+
+Cox D. Regression models and life tables. Journal of the Royal Statistical Society Series B (with discussion) 1972; 34: 187–220.
+
+Efron B. Efficiency of Cox’s likelihood function for censored data. Journal of the American Statistical Association 1977; 72: 557–565.
+
+Friedman M. Piecewise Exponential models for survival data with covariates. The Annals of Statistics 1982; 10: 101–113.
+
+Gompertz B . On the nature of the function expressive of the law of human mortality, and on a new mode of determining the value of life contingencies. Philosophical Transactions of the Royal Society of London 1825; 115: 513–585.
+
+Lawless J. Statistical models and methods for lifetime data, Second edn. John Wiley & Sons, 2003.
+
+Weibull W. A statistical distribution function of wide applicability. Journal of Applied Mechanics, Transactions ASME 1951; 18: 293–297.
+

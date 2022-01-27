@@ -1,0 +1,1532 @@
+---
+title: "HDAT9600 Introduction to Matrix Algebra"
+tutorial:
+  id: "au.edu.unsw.cbdrh.hdat9600.tutorials.matrices"
+output:
+  learnr::tutorial:
+    progressive: false
+    allow_skip: true
+    css: css/tutorials.css
+runtime: shiny_prerendered
+description: "An introduction to matrix algebra"
+---
+
+```{r setup, include=FALSE}
+library(learnr)
+knitr::opts_chunk$set(echo = FALSE)
+```
+
+```{r server-setup, context="server"}
+# do not use - it interferes with the learnr "Start over" functionality
+# session$onSessionEnded(stopApp)
+```
+
+![](images/UNSW_2017_Big_Data_landscape.jpg){width="75%"}
+
+## Introduction
+
+This basic introduction to **matrix algebra** (also often called **linear algebra**) is based heavily on notes by Associate Professor Adrian Dobra of the University of Washington, used with permission, adapted and enhanced with $\textsf{R}$  examples by Dr Tim Churches for the UNSW MSc Health Data Science HDAT9600 Statistical Modelling 1 course.
+
+<span class="copyright">© Copyright 2021 University of Washington and UNSW Sydney. All rights reserved except where otherwise stated.</span>
+
+<div class="anxiety">
+### Don\'t stress!
+
+Although this tutorial appears to contain a lot of maths, it actually very easy, and it is basically just arithmetic with some rules used for matrices. You will not be examined or assessed on your understanding or mastery of this material in the HDAT9600 course. However, you are urged to work through this material, because you will gain a much better understanding of the material in later chapters of the course if you are at least familiar with matrix notation and nomenclature. As a data scientist, you will probably encounter matrix notation and operations a lot in scientific papers and technical documents -- hence, a basic understanding of what it all means is essential. But it **isn\'t** hard, so don\'t stress!
+</div>
+
+## Matrices and Vectors
+
+A matrix is simply an arrangement of numbers in rectangular form. A (_j_ × _k_) matrix **A** can be written thus:
+
+$$ 
+\mathbf{A}  = 
+ \begin{bmatrix}
+  a_{11} & a_{12} & \ldots & a_{1k} \\
+  a_{21} & a_{22} & \ldots & a_{2k} \\
+  \vdots  & \vdots  & \ddots & \vdots  \\
+  a_{j1} & a_{j2} & \ldots & a_{jk} 
+ \end{bmatrix}
+$$
+
+Notice that the convention is that a **boldfaced** capital letter is used to refer to the matrix as a whole, and the corresponding lowercase letter is used to refer to individual elements of the matrix. Individual elements are identified by double subscripts, with the row number first, followed by the column number. A handy reference to statistical notation conventions, including matrix and vector notations, can be found on [this wikipedia page](https://en.wikipedia.org/wiki/Notation_in_probability_and_statistics).
+
+Conveniently (and by design), this closely follows the $\textsf{R}$ syntax for defining and accessing matrices. Examine and then run the following code. You may also wish to revise the section on matrices and arrays in the _Introduction to R Programming_ tutorial that is a prerequisite for this course.
+
+```{r define-access-matrices, exercise = TRUE}
+B <- matrix(c(2, 4, 3, 1, 5, 7), # the data elements 
+            nrow=2,              # number of rows 
+            ncol=3)              # number of columns 
+
+B
+class(B)
+
+# row 2, column 3
+B[2,3]
+```
+
+Recall that the `matrix()` function in $\textsf{R}$ constructs matrices from vectors column-wise by default, as in the example above. You can use the `byrows=` argument to construct matrices row-wise. Compare the result of this code:
+
+```{r define-access-matrices-byrows, exercise = TRUE}
+C <- matrix(c(2, 4, 3, 1, 5, 7), # the data elements 
+            nrow=2,              # number of rows 
+            ncol=3,              # number of columns
+            byrow = TRUE)        # construct matrix by rows
+
+C
+```
+
+### The order of a matrix
+
+The dimensionality of a matrix is also known as the _order_ of a matrix. Thus, in general terms, the order of matrix A above is (_j_,_k_). The `dim()` function is used in $\textsf{R}$ to determine, or set, the dimensions (order) of a matrix:
+
+```{r def-matrix-b}
+B <- matrix(c(2, 4, 3, 1, 5, 7), # the data elements 
+            nrow=2,              # number of rows 
+            ncol=3)              # number of columns 
+C <- matrix(c(2, 4, 3, 1, 5, 7), # the data elements 
+            nrow=2,              # number of rows 
+            ncol=3,              # number of columns
+            byrow = TRUE)        # construct matrix by rows
+```
+
+```{r get-dim-of-a-matrix, exercise = TRUE, exercise.setup="def-matrix-b"}
+dim(B)
+```
+
+A _square matrix_ is a matrix of order (_j_,_k_) where _j_ = _k_, that is the matrix has the same number of rows as columns.
+
+![A square matrix of brussel sprouts of order (5, 5)](images/square_matrix.jpg){width="75%"}
+
+### Vectors
+
+There is also a special case of a matrix called a _vector_. Vectors are matrices which have either one row or one column. Row vectors have a single row and multiple columns, thus an order (1, _k_) row vector looks like this:
+
+$$ 
+\mathbf{\alpha}  = 
+ \begin{bmatrix}
+  \alpha_1 & \alpha_2 & \alpha_3 & \ldots & a_k 
+ \end{bmatrix}
+$$
+
+An order (_j_,1) column vector looks like this:
+
+$$ 
+\mathbf{y}  = 
+ \begin{bmatrix}
+  y_1 \\
+  y_2 \\
+  y_3 \\
+  \vdots \\
+  y_j 
+ \end{bmatrix}
+$$
+
+The naming convention for vectors is similar to that for matrices, except that the letters used to name them are all boldfaced lower-case.
+
+We are already familiar with vectors in $\textsf{R}$. Note that in mathematical matrix notation, a vector is considered a special case of a matrix, whereas in $\textsf{R}$, a matrix is a special case of a vector -- it is a vector with two dimensions imposed on it.
+
+A scalar in matrix notation is a single value -- that is, an order (1,1) matrix. In $\textsf{R}$, a scalar is just a vector of length 1, or a matrix with dimensions (1,1).
+
+
+```{r quiz-1}
+quiz(caption="Quiz 1",
+  question("An order (4, 5) matrix:",
+    answer("has 5 rows and 4 columns", message = "Remember that in matrix notation, rows come first, then columns."),
+    answer("has 20 columns but a variable number of rows and columns", message = "You need to re-read the material in this section."),
+    answer("has 4 rows and 5 columns", correct = TRUE),
+    answer("is a square matrix", message = "A square matrix has the same number of rows as columns."),
+    random_answer_order = TRUE,
+    allow_retry = TRUE
+  ),
+  question("A column vector in matrix notation:",
+    answer("has one column and is denoted by a lowercase letter in bold", correct = TRUE),
+    answer("has one column and is denoted by a non-bold uppercase letter", message = "Non-bold lowercase letters, with subscripts, are used by convention to refer to elements (cells) in a matrix. Row- or column-vectors are referred to using a lowercase letter **in bold**."),
+    answer("has the same number of rows as columns", message = "You need to re-read the material in this section."),
+    answer("is the same as a vector in $\\textsf{R}$", message = "Not quite! a column- or row-vector in matrix notation is still a matrix, just with only one column or one row respectively. It still behaves like a matrix, whereas in $\\textsf{R}$, vectors behave differently to matrices in several key ways."),
+    random_answer_order = TRUE,
+    allow_retry = TRUE
+  )
+)
+```
+
+## Matrix addition and subtraction
+
+Now that we have defined matrices, vectors, and scalars, we can consider the arithmetic operations we can perform on them. For addition and subtraction, matrix arithmetic is a just straightforward extension of scalar arithmetic. Scalar addition is simple:
+
+$$
+\begin{align}
+m = 2 \\
+n = 5 \\
+m + n = 7
+\end{align}
+$$
+
+Addition is similarly defined for matrices. If matrices or vectors are of the same order, then they can be added, element-wise. Thus, for a pair of order (2,2) matrices *A* and *B*, $\mathbf{A} + \mathbf{B} = \mathbf{C}$ is:
+
+$$
+ \begin{bmatrix}
+  a_{11} & a_{12} \\
+  a_{21} & a_{22} \\
+ \end{bmatrix} +
+ \begin{bmatrix}
+  b_{11} & b_{12} \\
+  b_{21} & b_{22} \\
+ \end{bmatrix} =
+ \begin{bmatrix}
+  (a_{11} + b_{11}) & (a_{12} + b_{12}) \\
+  (a_{21} + b_{21}) & (a_{22} + b_{22}) \\
+ \end{bmatrix} =
+ \begin{bmatrix}
+  c_{11} & c_{12} \\
+  c_{21} & c_{22} \\
+ \end{bmatrix} 
+$$
+
+Subtraction similarly follows, thus for a pair of order (2,2) matrices, $\mathbf{A} - \mathbf{B} = \mathbf{C}$ is:
+
+$$
+ \begin{bmatrix}
+  a_{11} & a_{12} \\
+  a_{21} & a_{22} \\
+ \end{bmatrix} -
+ \begin{bmatrix}
+  b_{11} & b_{12} \\
+  b_{21} & b_{22} \\
+ \end{bmatrix} =
+ \begin{bmatrix}
+  (a_{11} - b_{11}) & (a_{12} - b_{12}) \\
+  (a_{21} - b_{21}) & (a_{22} - b_{22}) \\
+ \end{bmatrix} =
+ \begin{bmatrix}
+  c_{11} & c_{12} \\
+  c_{21} & c_{22} \\
+ \end{bmatrix} 
+$$
+
+It is important to keep in mind that matrix addition and subtraction is only defined in the matrices are the same order, or, in other words, share the same dimensionality. If they do, they are said to be *conformable for addition*. If not, they are *nonconformable*.
+
+Here is a concrete example:
+
+$$
+ \begin{bmatrix}
+  1 & \phantom{-}4 & -2 \\
+  5 & -3 & \phantom{-}3 \\
+ \end{bmatrix} -
+ \begin{bmatrix}
+  -3 & 2 & \phantom{-}8  \\
+   \phantom{-}2 & 2 & -3  \\
+ \end{bmatrix} =
+ \begin{bmatrix}
+  4 & \phantom{-}2 & -10 \\
+  3 & -5 & \phantom{-}6  \\
+ \end{bmatrix} 
+$$
+
+Not surprisingly, $\textsf{R}$ makes it easy to perform matrix addition and subtraction:
+
+```{r matrix-addition-1, exercise=TRUE}
+A <- matrix(c(1, 5, 4, -3, -2, 3), nrow=2, ncol=3) 
+
+B <- matrix(c(-3, 2, 2, 2, 8, -3), nrow=2, ncol=3)
+
+A - B
+```
+
+Note also that for matrices, just like for scalars:
+
+* $\mathbf{A} + \mathbf{B} = \mathbf{B} + \mathbf{A}$ i.e. matrix addition is commutative.
+* $(\mathbf{A} + \mathbf{B}) + \mathbf{C} = \mathbf{A} + (\mathbf{B} + \mathbf{C})$ i.e. matrix addition is associative.
+
+### Activity
+
+Write some $\textsf{R}$ code to create the two matrices, $\mathbf{A}$ and $\mathbf{B}$ shown below, and calculate $\mathbf{A} + \mathbf{B}$ and $\mathbf{A} - \mathbf{B}$.
+
+$$
+\mathbf{A} = 
+ \begin{bmatrix}
+  3 & \phantom{-}5 & -1 \\
+  4 & -2 & \phantom{-}4 \\
+ \end{bmatrix} \qquad
+\mathbf{B} = 
+ \begin{bmatrix}
+  -6 & 5 & \phantom{-}7  \\
+   \phantom{-}9 & 1 & -4  \\
+ \end{bmatrix}
+$$
+```{r matrix-addition-activity, exercise=TRUE}
+
+```
+
+## Matrix transposition
+
+Another common matrix operation is _transposition_. In this operation, the order subscripts are exchanged for each element of the matrix. Thus, an order (_j_,_k_) matrix becomes an order (_k_,_j_) matrix. Transposition is denoted by placing a superscript T after the matrix identifier, thus: $\mathbf{A}^T$ (or a prime mark, thus: $\mathbf{A}^\prime$). Here is an example of a transpose:
+
+$$
+ \mathbf{Q} = 
+ \begin{bmatrix}
+  q_{1,1} & q_{1,2} \\
+  q_{2,1} & q_{2,2} \\
+  q_{3,1} & q_{3,2} \\
+ \end{bmatrix} \qquad
+\mathbf{Q^T} =  
+\mathbf{Q^\prime} =  
+ \begin{bmatrix}
+  q_{1,1} & q_{2,1} & q_{3,1} \\
+  q_{1,2} & q_{2,2} & q_{3,2} \\
+ \end{bmatrix}
+$$
+
+Note that in this example above, the subscripts in the transpose have been kept the same to make it clearer how the values in the cells have been exchanged. Matrix subscripts don\'t usually contain commas --- we have included them here to make it clear that the same subscript labelling has been used in both matrices, $\mathbf{Q}$ and $mathbf{Q^T}$.
+
+A concrete example also makes this easier to appreciate -- here is an example for a row vector:
+
+$$
+\omega = 
+ \begin{bmatrix}
+  1 & 3 & 2 & -5
+ \end{bmatrix} \qquad
+\omega^T =  
+\omega^\prime =  
+ \begin{bmatrix}
+ \begin{align*}
+  1 \\
+  3 \\
+  2 \\
+  -5
+ \end{align*}  
+ \end{bmatrix}
+$$
+
+We will use the superscripted T this this $\mathbf{A}^T$ to denote transposition henceforth in these notes, because it is clearer, but you will see the prime mark $\mathbf{A}^\prime$ used a great deal elsewhere.
+
+Note that transposing a row vector turns it into a column vector, and _vice versa_. 
+
+There are a couple of results regarding transposition that are important to remember:
+
+* an order (_j_,_j_) matrix $\mathbf{A}$ is said to be **symmetric** if $\mathbf{A} = \mathbf{A}^T$. This implies, of course, that all symmetric matrices are square. Here is an example:
+
+$$
+\mathbf{W} = 
+ \begin{bmatrix}
+  \phantom{-}1   & 0.2 & -0.5 \\
+  \phantom{-}0.2 & 1   & \phantom{-}0.4 \\
+  -0.5           & 0.4 & \phantom{-}1
+ \end{bmatrix} \qquad
+\mathbf{W}^T =  
+ \begin{bmatrix}
+  \phantom{-}1   & 0.2 & -0.5 \\
+  \phantom{-}0.2 & 1 & \phantom{-}0.4 \\
+  -0.5           & 0.4 & \phantom{-}1
+ \end{bmatrix}
+$$
+
+* $(\mathbf{A}^T)^T = \mathbf{A}$. In other words, the transpose of the transpose is the original matrix.
+* for a scalar _k_, $(k\mathbf{A})^T = k\mathbf{A}^T$
+* for two matrices of the same order, the transpose of the sum is equal to the sum of the transposes. More formally: $(\mathbf{A} + \mathbf{B})^T = \mathbf{A}^T + \mathbf{B}^T$, that is, transposition is also commutative.
+
+In $\textsf{R}$, transposition is performed using the `t()` function. Using the row vector matrix, above:
+
+```{r transpose-matrices-a, exercise = TRUE}
+omega <- matrix(c(1, 3, 2, -5), nrow=1) 
+
+omega
+
+t(omega)
+```
+
+Empirically demonstrating that for two matrices of the same order, the transpose of the sum is equal to the sum of the transposes:
+
+```{r transpose-matrices-b, exercise = TRUE}
+A <- matrix(c(1, 5, 4, -3, -2, 3), nrow=2, ncol=3) 
+B <- matrix(c(-3, 2, 2, 2, 8, -3), nrow=2, ncol=3)
+
+A
+B
+
+t(A + B)
+
+t(A) + t(B)
+```
+
+### Quiz
+
+```{r question-2, echo=FALSE}
+  question("In matrix notation $\\mathbf{A^\\prime}$:",
+    answer("denotes the transpose of matrix **A**", correct = TRUE),
+    answer("denotes the inverse of matrix **A**", correct = FALSE),
+    answer("denotes the determinant of matrix **A**", correct = FALSE),
+    random_answer_order = TRUE,
+    allow_retry = TRUE
+  )
+```
+
+### Activity
+
+Write some $\textsf{R}$ code to create the two matrices, $\mathbf{A}$ and $\mathbf{B}$ shown below, and print out $\mathbf{A^T}$ and $\mathbf{B^T}$.
+
+$$
+\mathbf{A} = 
+ \begin{bmatrix}
+  9 & \phantom{-}5 & -1 \\
+  4 & -7 & \phantom{-}2 \\
+ \end{bmatrix} \qquad
+\mathbf{B} = 
+ \begin{bmatrix}
+  -16 & 2 & \phantom{-}12  \\
+   \phantom{-}8 & 3 & -5  \\
+ \end{bmatrix}
+$$
+```{r matrix-transpose-activity, exercise=TRUE}
+
+```
+
+
+## Matrix multiplication
+
+So far we have examined matrix addition and subtraction, as well as matrix transposition. Now we turn our attention to multiplication. The first and simplest type of multiplication is a scalar times a matrix. In words, a scalar $\alpha$ times a matrix **A** equals the scalar times each element of **A**.
+
+$$
+\mathbf{A} = 
+ \begin{bmatrix}
+  a_{1,1} & a_{1,2} \\
+  a_{2,1} & a_{2,2} \\
+ \end{bmatrix} \qquad
+\alpha\mathbf{A} =  
+ \begin{bmatrix}
+  \alpha a_{1,1} & \alpha a_{1,1} \\
+  \alpha a_{2,1} & \alpha a_{2,1} \\
+ \end{bmatrix}
+$$
+
+Or a concrete example:
+
+$$
+\alpha = \frac{1}{2} \qquad
+\mathbf{A} = 
+ \begin{bmatrix}
+  4 & 8 & 2 \\
+  6 & 8 & 10 \\
+ \end{bmatrix} \qquad
+\alpha\mathbf{A} =  
+ \begin{bmatrix}
+  2 & 4 & 1 \\
+  3 & 4 & 5 \\
+ \end{bmatrix}
+$$
+
+And in $\textsf{R}$:
+
+```{r scalar-multiply-matrices-a, exercise = TRUE}
+A <- matrix(c(4, 6, 8, 8, 2, 10), nrow=2, ncol=3) 
+A
+alpha <- 0.5
+alpha * A
+```
+
+Now let\'s consider the process of multiplying two matrices. Matrix multiplication by another matrix is defined as follows: given matrix **A** of order (_m_,_n_) and matrix **B** of order (_n_,_r_), then the product **AB** = **C** is the order (_m_, _r_) matrix whose entries are defined by:
+
+$$
+c_{i,j} = \sum_{k=1}^{n} a_{i,k} b_{k,j}
+$$
+where $i=1,...,m$ and $j=1,...,r$. 
+
+In other words, matrix multiplication is the sum of (each row of **A** is multiplied by each column of **B**). 
+
+Note that for matrices to be _multiplication conformable_, the number of columns in the first matrix _n_ must equal the number of rows in the second matrix _n_.
+
+It is easier to see this by looking at a few concrete examples. Let
+
+$$
+\mathbf{A} = 
+ \begin{bmatrix}
+  -2           & 1 & 3 \\
+  \phantom{-}4 & 1 & 6 \\
+ \end{bmatrix} \qquad
+\mathbf{B} =  
+ \begin{bmatrix}
+  3 & -2 \\
+  2 & \phantom{-}4 \\
+  1 & -3 \\
+ \end{bmatrix}
+$$
+
+We can now define their product. We say that **B** is _pre-multiplied_ by **A**, or that **A** is _post-multiplied_ by **B**:
+
+$$
+\begin{equation}
+\begin{split}
+\mathbf{AB} & =  \begin{bmatrix}
+((-2 \times 3) + (1 \times 2) + (3 \times 1)) & ((-2 \times -2) + (1 \times 4) + (3 \times -3)) \\
+((4 \times 3) + (1 \times 2) + (6 \times 1)) & ((4 \times -2) + (1 \times 4) + (6 \times -3)) \\
+\end{bmatrix} \\
+ & = \begin{bmatrix}
+-1            & -1 \\
+\phantom{-}20 & -22 \\
+\end{bmatrix} \\
+\end{split}
+\end{equation}
+$$
+
+Note that **A** is of order (2,3), and **B** is of order (3,2). Thus, the product **AB** is of order (2,2).
+
+The product **BA** will therefore be:
+
+$$
+\begin{equation}
+\begin{split}
+\mathbf{BA} & =  \begin{bmatrix}
+((3 \times -2) + (-2 \times 4)) &  ((3 \times 1)  + (-2 \times 1)) &  ((3 \times 3) + (-2 \times 6)) \\
+((2 \times -2) + (4 \times 4)) &  ((2 \times 1)  + (4 \times 1)) &  ((2 \times 3) + (4 \times 6)) \\
+((1 \times -2) + (-3 \times 4)) &  ((1 \times 1)  + (-3 \times 1)) &  ((1 \times 3) + (-3 \times 6)) \\
+\end{bmatrix} \\
+ & = \begin{bmatrix}
+-14           & \phantom{-}1 & -3 \\
+\phantom{-}12 & \phantom{-}6 & \phantom{-}30 \\
+-14           & -2           & -15 \\
+\end{bmatrix} \\
+\end{split}
+\end{equation}
+$$
+
+Matrix multiplication in $\textsf{R}$ is performed using the `%*%` operator. Thus we can easily verify the results shown above using $\textsf{R}$:
+
+```{r multiply-matrices-a, exercise = TRUE}
+A <- matrix(c(-2, 4, 1, 1, 3, 6), nrow=2, ncol=3) 
+B <- matrix(c(3, 2, 1, -2, 4, -3), nrow=3, ncol=2)
+
+A
+B
+
+A %*% B
+
+B %*% A
+```
+
+The fact that $AB \ne BA$ shows that the multiplication of matrices is not commutative.
+
+Note that the `*` operator does elementwise multiplication on matrices, and that is **not** the same as (inner) matrix multiplication! Examine the following:
+
+```{r multiply-matrices-inner-versus-elementwise, echo=TRUE}
+D <- matrix(c(1, 4, -7, -2, 4, 1, 1, 3, 6), nrow=3, ncol=3) 
+E <- matrix(c(-3, -6, -1, 3, 2, 1, -2, 4, -3), nrow=3, ncol=3)
+
+D
+E
+
+# (inner) matrix multiplication
+D %*% E
+
+# elementwise non-matrix multiplication
+D * E
+```
+
+Here are a few other useful identities:
+
+* We\'ve already seen that matrix multiplication is not commutative. In other words:
+$$ \mathbf{AB} \ne \mathbf{BA} $$
+* Matrix multiplication is associative. In other words:
+$$ (\mathbf{AB})\mathbf{C} = \mathbf{A}(\mathbf{BC}) $$ 
+* Matrix multiplication is distributive. In other words:
+$$ \mathbf{A}(\mathbf{B} + \mathbf{C}) = \mathbf{AB} + \mathbf{AC} $$
+* Scalar multiplication is commutative, associative, and distributive.
+* The transpose of a matrix product takes the form :
+$$ (\mathbf{AB})^T = \mathbf{B}^T \mathbf{A}^T $$
+
+Let\'s verify some of those identities empirically using $\textsf{R}$:
+
+```{r multiply-matrices-identities-setup}
+A <- matrix(c(-2, 4, 1, 1, 3, 6), nrow=2, ncol=3) 
+B <- matrix(c(3, 2, 1, -2, 4, -3), nrow=3, ncol=2)
+C <- matrix(c(5, -2, 3, 7, -2, -6), nrow=2, ncol=3) 
+```
+
+```{r multiply-matrices-identities-a, exercise = TRUE, exercise.lines = 25}
+D <- matrix(c(1, 4, -7, -2, 4, 1, 1, 3, 6), nrow=3, ncol=3) 
+E <- matrix(c(-3, -6, -1, 3, 2, 1, -2, 4, -3), nrow=3, ncol=3)
+F <- matrix(c(-2, 3, 9, 5, -2, 3, 7, -2, -6), nrow=3, ncol=3) 
+
+D
+E
+F
+
+# Is matrix multiplication associative?
+identical(
+          (D %*% E) %*% F,
+           D %*% (E %*% F)
+         )
+
+# Is matrix multiplication distributive?
+identical(
+          D %*% (E + F),
+          (D %*% E) + (D %*% F)
+         )
+
+# transpose of a matrix product equals the product of the transposed matrices in opposite order?
+identical(
+          t(D %*% E),
+          t(E) %*% t(D)
+          )
+
+```
+
+
+Just as with scalar algebra, we use the exponentiation operator to denote repeated multiplication. For a square matrix, we use the following notation to denote exponentiation:
+
+$$ \mathbf{A}^4 = \mathbf{A} \cdot \mathbf{A} \cdot \mathbf{A} \cdot \mathbf{A} $$
+
+Why can only square matrices be exponentiated? Because a square matrix is the only type of matrix which is conformable with itself!
+
+### Quiz
+
+```{r question-3, echo=FALSE}
+  question("In matrix multiplication of two matrices $\\mathbf{A}$ and $\\mathbf{B}$:",
+    answer("each row of **A** is multiplied by each column of **B**", correct = TRUE),
+    answer("each column of **A** is multiplied by each column of **B**", correct = FALSE),
+    answer("each column of **A** is multiplied by each row of **B**", correct = FALSE),
+    answer("each element of **A** is multiplied by the corresponding element of **B**", correct = FALSE),
+    random_answer_order = TRUE,
+    allow_retry = TRUE,
+    incorrect = "Incorrect. You need to re-read the material in this section."
+  )
+```
+
+## Vectors and multiplication
+
+We use the same formula for vector multiplication as we do for matrix multiplication, because as we have seen, vectors can be seen as a matrix with just one ow or one column. Let\'s look at a few examples. Let us define the column vector _e_. By definition, the order of _e_ is (_N_, 1), where _N_ is the number of values in _e_. We can take the _inner product_ of _e_, which is simply:
+
+$$ e^T e = 
+\begin{bmatrix}
+e_1 & e_2 & \ldots & e_N \\
+\end{bmatrix} 
+\begin{bmatrix}
+e_1 \\
+e_2 \\
+\vdots \\ 
+e_N \\
+\end{bmatrix} 
+$$
+
+This can be simplified as:
+
+$$ 
+\begin{align}
+\begin{split}
+e^Te & = e_1 e_1 + e_2 e_2 + \ldots + e_N e_N \\
+ & = \sum_{i=1}^{N}e_i^2
+\end{split}
+\end{align}
+$$ 
+
+Why is this important? The inner product of a column vector with itself is equal to the sum of the
+square values of the vector. This is used a lot in regression models! 
+
+Let\'s verify that in $\textsf{R}$:
+
+```{r multiply-column-vectors, exercise = TRUE, exercise.lines = 12}
+g_vector <- c(-2, 3, 9, 5, -2, 3, 7, -2, -6)
+g <- matrix(g_vector, ncol=1)
+
+# column vector
+g
+
+# transpose of column vector matrix multiplied by itself
+t(g) %*% g
+
+# sum of squares of the values in the column vector
+sum(g_vector^2)
+```
+
+## Some special matrices
+
+When performing scalar algebra, we know that $x \times 1 = x$, which is known as the _identity_ relationship. There is a similar relationship in matrix algebra: $\mathbf{AI} = \mathbf{A}$. But what is $\mathbf{I}$? It can be shown that $\mathbf{I}$ is a diagonal, square matrix with ones on the main diagonal, and zeros on the off diagonal. For example, the order three identity matrix is:
+
+$$
+\mathbf{I}_3 = 
+\begin{bmatrix}
+1 & 0 & 0 \\
+0 & 1 & 0 \\
+0 & 0 & 1 \\
+\end{bmatrix}
+$$
+
+Notice the use of a subscript to indicate the order of the identity matrix $\mathbf{I}$.
+
+Here is an example of matrix multiplication by an identity matrix (this makes it obvious why it is called an identity matrix):
+
+$$
+\begin{bmatrix}
+1 & 2  \\
+3 & 4  \\
+\end{bmatrix} 
+\begin{bmatrix}
+1 & 0  \\
+0 & 1  \\
+\end{bmatrix} =
+\begin{bmatrix}
+1 & 2  \\
+3 & 4  \\
+\end{bmatrix} 
+$$
+
+The identity matrix (any identity matrix, of any order) is commutative, associative, and distributive with respect to multiplication. That is:
+
+$$ \mathbf{AIB} = \mathbf{IAB} = \mathbf{ABI} = \mathbf{AB} $$
+
+In scalar algebra, another key identity is $x + 0 = x$. In matrix algebra, the equivalent of a scalar zero is a matrix of all zeroes, denoted $0_{j,k}$. Here is an example:
+
+$$
+\mathbf{A} = 
+\begin{bmatrix}
+1 & 2  \\
+3 & 4  \\
+\end{bmatrix} \\
+\mathbf{A} + 0_{2,2} = 
+\begin{bmatrix}
+1 & 2  \\
+3 & 4  \\
+\end{bmatrix} +
+\begin{bmatrix}
+0 & 0  \\
+0 & 0  \\
+\end{bmatrix} =
+\begin{bmatrix}
+1 & 2  \\
+3 & 4  \\
+\end{bmatrix} =
+\mathbf{A}
+$$
+
+There are three other matrices worth mentioning. The first is a _diagonal_ matrix, which takes specific values on the main diagonal, and zeros on the off-diagonal. Formally, matrix $\mathbf{A}$ is diagonal if $a_{i,j} = 0 \quad \forall \, i \ne j$. ($\forall$ means _for all_ or _for any_ or _for each_.)
+
+The identity matrix is an example of a diagonal matrix, and so is the following matrix $\mathbf{\Omega}$:
+
+$$
+\mathbf{\Omega} = 
+\begin{bmatrix}
+2.5667 & 0 & 0  \\
+0 & 3.4126 & 0  \\
+0 & 0 & 7.4329 \\
+\end{bmatrix} 
+$$
+
+### Quiz
+
+```{r question-4, echo=FALSE}
+  question("Choose all that are correct:",
+    answer("The identity matrix does not need to be square as long as it has ones on its diagonal and zeroes elsewhere", correct = FALSE),
+    answer("If a square matrix **A** is multiplied by the corresponding identity matrix of the same order, the result equals **A**", correct = TRUE),
+    answer("The null matrix is just all ones", correct = FALSE),
+    answer("The identity matrix (any identity matrix, of any order) is commutative, associative, and distributive with respect to multiplication", correct = TRUE),
+    random_answer_order = TRUE,
+    allow_retry = TRUE,
+    incorrect = "Incorrect. You need to re-read the material in this section."
+  )
+```
+
+## Matrix inversion part 1
+
+<div class="anxiety">
+### Too much maths!
+
+Although the following sections of matrix inversion may look a bit confronting if you haven\'t done any matrix algebra previously, you nonetheless are strongly encouraged to work through them, because they illustrate how matrices can be used to solve systems of equations. And as we will see in the next chapter, fitting a statistical model is, in fact, having to solve a (potentially very large) system of equations. Understanding how computers can be made to do this using matrices is a key insight, and one which will stand you in good stead as a data scientist in the future.
+
+Remember, you will not be examined or assessed on your understanding of this material, so don\'t become too stressed if it seems incomprehensible at first. In fact, when broken down into individual steps, it involves only basic arithmetic manipulations. Further explanation can be provided in the face-to-face sessions for this course, and/or in the OpenLearning online environment used to host the course.
+</div>
+
+So far we have defined matrix addition, subtraction, and multiplication. We have not, however, yet defined matrix division. 
+
+Consider this simple algebraic problem:
+
+$$
+\begin{align}
+\begin{split}
+2x & = 6 \\
+\frac{1}{2} \times 2x & = \frac{1}{2} \times 6 \\
+x & = 3
+\end{split}
+\end{align}
+$$
+
+The quantity $\frac{1}{2} = 2^{-1}$ can be called the inverse of 2. This is exactly what we are doing when 
+we divide in scalar algebra.
+
+So, now let us define a matrix which the inverse of $\mathbf{A}$. Let\'s call that matrix $\mathbf{A}^{−1}$. In scalar algebra, a number times its inverse equals one. In matrix algebra, then, we must find the matrix $\mathbf{A}^{−1}$ where $\mathbf{AA}^{−1} = \mathbf{A}^{−1}\mathbf{A} = \mathbf{I}$, where $\mathbf{I}$ is the identity matrix.
+
+Given this matrix, we can then do the following, which is exactly what one needs to do when solving systems of equations, because $\mathbf{A}^{-1}\mathbf{A} = \mathbf{I}$:
+
+$$
+\begin{align}
+\begin{split}
+\mathbf{A}x & = b \\
+\mathbf{A}^{-1}\mathbf{A}x & = \mathbf{A}^{-1}b \\
+x & = \mathbf{A}^{-1}b
+\end{split}
+\end{align}
+$$
+
+So, how do we compute $\mathbf{A}^{−1}$? We can solve this problem by computing the _determinants_ of square matrices using a method called _cofactor expansion_. We can then use these _determinants_ to form the inverted matrix $\mathbf{A}^{-1}$.
+
+Determinants are defined only for square matrices, and are scalars. They are denoted $\det \mathbf{A} = \begin{vmatrix}\mathbf{A}\end{vmatrix}$. As we will see, determinants play a key role in determining whether a matrix is invertable, and what the inverse is.
+
+For an order (2, 2) matrix, the determinant is calculated as follows:
+
+$$
+\det \mathbf{A} = \begin{vmatrix}\mathbf{A}\end{vmatrix} = 
+\begin{vmatrix}
+a_{11} & a_{12} \\
+a_{21} & a_{22} \\
+\end{vmatrix} =
+a_{11}a_{22} - a_{12}a_{21}
+$$
+
+Some concrete examples will make this clearer:
+
+$$
+\mathbf{G} = 
+\begin{bmatrix}
+2 & 4 \\
+6 & 3 \\
+\end{bmatrix} \qquad
+\begin{vmatrix}
+\mathbf{G}
+\end{vmatrix} = 
+2 \times 3 - 4 \times 6 = -18
+$$
+
+$$
+\mathbf{\Gamma} = 
+\begin{bmatrix}
+2 & 4 \\
+1 & 2 \\
+\end{bmatrix} \qquad
+\begin{vmatrix}
+\mathbf{\Gamma}
+\end{vmatrix} = 
+2 \times 2 - 4 \times 1 = 0
+$$
+
+That\'s easy enough for an order (2, 2) matrix, but it is a bit more involved for large matrices. To compute determinants, we need to define a few other quantities: for an order (_n_, _n_) square matrix $\mathbf{A}$, we can define the cofactor $\theta_{r,s}$ for each element of $\mathbf{A}$: $a_{r,s}$. The cofactor of $a_{r,s}$ is written as:
+
+$$
+\theta_{r,s} = (-1)^{(r + s)} \begin{vmatrix}\mathbf{A}_{r,s}\end{vmatrix}
+$$
+
+where $\mathbf{A}_{r,s}$ is the matrix formed after deleting row _r_ and column _s_ of the original matrix (sometimes called the _minor_ of $\mathbf{A}$). Thus, each element of the matrix $\mathbf{A}$ has its own cofactor. We therefore can compute the matrix of cofactors for a matrix. Here is a concrete example:
+
+$$
+\mathbf{B} = 
+\begin{bmatrix}
+1 & 3 & 2 \\
+4 & 5 & 6 \\
+8 & 7 & 9 \\
+\end{bmatrix}
+$$
+
+We can compute the matrix of cofactors for $\mathbf{B}$ thus (remember that cofactors are just the matrix formed after deleting row _r_ and column _s_ of the original matrix):
+
+$$
+\mathbf{\Theta}_B = 
+\begin{bmatrix}
+\phantom{-}
+\begin{vmatrix}
+5 & 6 \\
+7 & 9 \\
+\end{vmatrix} & &
+-
+\begin{vmatrix}
+4 & 6 \\
+8 & 9 \\
+\end{vmatrix} & &
+\phantom{-}
+\begin{vmatrix}
+4 & 5 \\
+8 & 7 \\
+\end{vmatrix} \\
+-
+\begin{vmatrix}
+3 & 2 \\
+7 & 9 \\
+\end{vmatrix} & &
+\phantom{-}
+\begin{vmatrix}
+1 & 2 \\
+8 & 9 \\
+\end{vmatrix} & &
+-
+\begin{vmatrix}
+1 & 3 \\
+8 & 7 \\
+\end{vmatrix} \\
+\phantom{-}
+\begin{vmatrix}
+3 & 2 \\
+5 & 6 \\
+\end{vmatrix} & &
+-
+\begin{vmatrix}
+1 & 2 \\
+4 & 6 \\
+\end{vmatrix} & &
+\phantom{-}
+\begin{vmatrix}
+1 & 3 \\
+4 & 5 \\
+\end{vmatrix} \\
+\end{bmatrix}
+=
+\begin{bmatrix}
+\phantom{-}3 & \phantom{-}12 & -12 \\
+-13 & -7 & \phantom{-}17 \\
+\phantom{-}8 & \phantom{-}2 & -7 \\
+\end{bmatrix}
+$$
+
+We can use any row or column of the matrix of cofactors $\mathbf{\Theta}_B$ to compute the determinant of a matrix $\mathbf{A}$. For any row $i$,
+
+$$
+\begin{vmatrix}
+\mathbf{A}
+\end{vmatrix} = 
+\sum_{j=1}^{n}a_{ij}\theta_{ij}
+$$
+
+Or for any column $j$,
+
+$$
+\begin{vmatrix}
+\mathbf{A}
+\end{vmatrix} = 
+\sum_{i=1}^{n}a_{ij}\theta_{ij}
+$$
+
+These formulae allow the determinant of an order _n_ matrix to be decreased to order (_n_ − 1). Any row or column can be used to do the expansion, called _cofactor expansion_, and compute the determinant. It can be repeated on very large matrices many times to get down to an order 2 matrix.
+
+Returning to our concrete example, above, we will perform the cofactor expansion on the first row:
+
+$$
+\begin{align}
+\begin{split}
+\begin{vmatrix}
+\mathbf{B}
+\end{vmatrix} & = 
+\sum_{j=1}^{n}b_{1j}\theta_{1j} \\
+& = (1 \times 3) + (3 \times 12) + (2 \times (-12)) \\
+& = 15
+\end{split}
+\end{align}
+$$
+
+Let\'s repeat that on the second column to check that we get the same determinant:
+
+$$
+\begin{align}
+\begin{split}
+\begin{vmatrix}
+\mathbf{B}
+\end{vmatrix} & = 
+\sum_{i=1}^{n}b_{i2}\theta_{i2} \\
+& = (3 \times 12) + (5 \times (-7) + (7 \times 2) \\
+& = 15
+\end{split}
+\end{align}
+$$
+
+You can do this for the other two rows, or the other two columns, and get the same result.
+Now, for any given matrix, you can perform the cofactor expansion and compute the determinant. Of course, as the order _n_ increases, this gets terribly difficult, because to compute each element of the cofactor matrix, you have to do another expansion. Computers, however, do this quite easily.
+
+In $\textsf{R}$, the `det()` function is used to compute the determinant of a square matrix. Let\'s use it to compute the determinant of matrix $\mathbf{B}$ as defined above.
+
+```{r compute-determinant-b, echo=TRUE, exercise=TRUE}
+B <- matrix(c(1,3,2,4,5,6,8,7,9), ncol = 3, byrow = TRUE)
+B
+
+det(B)
+```
+### Quiz
+
+```{r question-5, echo=FALSE}
+  question("Choose all that are correct:",
+    answer("Determinants are defined only for square matrices, and are themselves a matrix.", message = "Yes, determinants are defined only for square matrices, but they are scalars (a single value), not a matrix.", correct = FALSE),
+    answer("The `det()` function can be used in R to calculate the determinant of a matrix", correct = TRUE),
+    answer("The determinant of a matrix is also sometimes called the minor of that matrix.", message = "No, the matrix formed after deleting row _r_ and column _s_ of the original matrix is sometimes called the minor of that matrix.", correct = FALSE),
+    answer("Calculating the determinant of a large matrix by hand can be extremely tedious", correct = TRUE),
+    random_answer_order = TRUE,
+    allow_retry = TRUE
+  )
+```
+
+## Matrix inversion part 2
+
+Now we can define a matrix which is the inverse of $\mathbf{A}$ -- we\'ll call that matrix $\mathbf{A^{-1}}$. In scalar algebra, a number times its inverse equals one. In matrix algebra, then, we must find the matrix $\mathbf{A^{-1}}$ where $\mathbf{A A^{-1}} = \mathbf{A^{-1} A} = \mathbf{I}$ (recalling that $\mathbf{I}$ is the identity matrix).
+
+We have defined two important quantities that one can use to compute inverses of matrices: the _determinant_ and the _matrix of cofactors_. The determinant of a matrix $\mathbf{A}$ is denoted $\begin{vmatrix}\mathbf{A}\end{vmatrix}$, and the matrix of cofactors we denoted $\mathbf{\Theta}_A$. 
+
+There is one more quantity that we need to define, the _adjoint_. The adjoint of a matrix $\mathbf{A}$ is denoted $\textrm{adj}(\mathbf{A})$. The adjoint is simply the matrix of cofactors transposed:
+
+$$
+\textrm{adj}(\mathbf{A}) = \mathbf{\Theta_A}^T = 
+\begin{bmatrix}\theta_{r,s}\end{bmatrix}^T = 
+\begin{bmatrix}
+(-1)^{(r + s)}
+\begin{vmatrix}\mathbf{A_{r,s}}\end{vmatrix}
+\end{bmatrix}^T
+$$
+
+where, as defined above, $\mathbf{A}_{r,s}$ is the matrix formed after deleting row _r_ and column _s_ of the original matrix $\mathbf{A}$ (also called the _minor of $\mathbf{A}$_).
+
+We now know all we need to know to compute inverses. It can be shown that the inverse of a matrix $\mathbf{A}$ is defined as follows:
+
+$$
+\mathbf{A^{-1}} = \frac{1}{\begin{vmatrix}\mathbf{A}\end{vmatrix}} 
+\textrm{adj}(\mathbf{A})
+$$
+
+Thus, for any matrix $\mathbf{A}$ that is invertable, we can now compute the inverse. This is trival to do by hand for order (2, 2) matrices, and only takes a few minutes for order (3, 3) matrices. However it becomes much 
+more difficult for larger matrices, but fortunately computers can compute inverses very easily, as we will see below.
+
+## Examples of matrix inversion
+
+Let\'s look at some concrete examples of matrix inversion.
+
+First, we\'ll find the inverse of an order (2, 2) matrix called $\mathbf{C}$:
+
+$$
+\mathbf{C} = 
+\begin{bmatrix}
+2 & 4 \\
+6 & 3 \\
+\end{bmatrix}
+$$
+
+First we calculate the determinant of $\mathbf{C}$:
+
+$$
+\begin{vmatrix}
+\mathbf{C}
+\end{vmatrix} = (2 \times 3) - (6 \times 4) = -18
+$$
+
+Next we write the matrix of cofactors for $\mathbf{C}$:
+
+$$
+\mathbf{\Theta_C} = 
+\begin{bmatrix}
+\phantom{-}3 & -6 \\
+-4 & \phantom{-}2
+\end{bmatrix}
+$$
+
+Then we transpose $\mathbf{\Theta_C}$ to get the adjoint for $\mathbf{C}$:
+
+$$
+\textrm{adj}(\mathbf{C}) =
+\mathbf{\Theta_C}^T = 
+\begin{bmatrix}
+\phantom{-}3 & -4 \\
+-6 & \phantom{-}2
+\end{bmatrix}
+$$
+
+Now that we have the determinant and the adjoint of $\mathbf{C}$, we can write the inverse of $\mathbf{C}$ (refer to the formulae above to check these calculations:
+
+$$
+\mathbf{C^{-1}} =
+\frac{1}{18} 
+\begin{bmatrix}
+\phantom{-}3 & -4 \\
+-6 & \phantom{-}2
+\end{bmatrix} =
+\begin{bmatrix}
+\frac{-3}{18} & \frac{4}{18} \\
+\frac{6}{18} & \frac{-2}{18}
+\end{bmatrix}
+$$
+
+To double-check, let\'s calculate the product $\mathbf{C^{-1}C}$ and makes sure it equals $\mathbf{I_2}$, the identity matrix of order (2, 2):
+
+$$
+\mathbf{C^{-1}C} =
+\begin{bmatrix}
+\frac{-3}{18} & \frac{4}{18} \\
+\frac{6}{18} & \frac{-2}{18}
+\end{bmatrix}
+\begin{bmatrix}
+2 & 4 \\
+6 & 3 \\
+\end{bmatrix} = 
+\begin{bmatrix}
+\frac{18}{18} & \frac{0}{18} \\
+\frac{0}{18} & \frac{18}{18}
+\end{bmatrix} = 
+\begin{bmatrix}
+1 & 0 \\
+0 & 1
+\end{bmatrix} =
+\mathbf{I_2}
+$$
+
+OK, that\'s all fairly tedious, and that\'s just for an order (2, 2) matrix. 
+
+Here is a room full of human computers, courtesy of JPL (Jet Propulsion labs at NASA), fitting a large linear model. Each person is computing matrices of cofactors with the aid of a calculating machine...
+
+![Human computers at JPL](images/human_computers_jpl.jpg)
+
+Luckily, computers make it much easier to calculate matrix inversions. $\textsf{R}$ provides the `solve()` function to find a matrix inversion in a single step: Let\'s replicate the calculations above in $\textsf{R}$:
+
+```{r compute-inverse-c-in-steps, echo=TRUE, exercise=TRUE}
+# define our original matrix C
+C <- matrix(c(2,4,6,3), ncol = 2, byrow = TRUE)
+C
+
+# find the inverse of C using solve()
+inverse_of_C <- solve(C)
+inverse_of_C
+
+# check that inverse_of_C really is the inverse of C by
+# matrix multiplying it by C and checking that the result is
+# the identity matrix
+inverse_of_C %*% C
+```
+
+OK, that was a lot easier!
+
+Let\'s try again, but with matrix **B** that we defined earlier. Recall that it looked like this:
+
+$$
+\mathbf{B} = 
+\begin{bmatrix}
+1 & 3 & 2 \\
+4 & 5 & 6 \\
+8 & 7 & 9 \\
+\end{bmatrix}
+$$
+
+We computed the cofactors for this matrix, and they looked like this:
+
+$$
+\mathbf{\Theta_B} = 
+\begin{bmatrix}
+\phantom{-}3 & \phantom{-}12 & -12 \\
+-13 & -7 & \phantom{-}17 \\
+\phantom{-}8 & \phantom{-}2 & -7 \\
+\end{bmatrix}
+$$
+
+Thus the adjoint of **B** is just the transpose of the cofactors of **B**:
+
+$$
+\mathbf{\Theta_B}^T = 
+\begin{bmatrix}
+\phantom{-}3 & -13 & 8 \\
+\phantom{-}12 & -7 & 2 \\
+-12 & \phantom{-}17 & 7 \\
+\end{bmatrix}
+$$
+
+We also computed the determinant of **B**: $\begin{vmatrix} \mathbf{B} \end{vmatrix} = 15$. Given all this information, we can write the inverse of **B**:
+
+$$
+\mathbf{B^{-1}} = 
+\frac{1}{15}
+\mathbf{\Theta_B}^T = 
+\frac{1}{15}
+\begin{bmatrix}
+\phantom{-}3 & -13 & 8 \\
+\phantom{-}12 & -7 & 2 \\
+-12 & \phantom{-}17 & 7 \\
+\end{bmatrix}
+$$
+
+We won\'t do the arithmetic needed to calculate the actual values in $\mathbf{B^{-1}}$, we\'ll let $\textsf{R}$ do the hard work:
+
+```{r compute-inverse-b-in-steps, echo=TRUE, exercise=TRUE}
+# define our original matrix B
+B <- matrix(c(1,3,2,4,5,6,8,7,9), ncol = 3, byrow = TRUE)
+B
+
+# find the inverse of B using solve()
+inverse_of_B <- solve(B)
+inverse_of_B
+
+# check that inverse_of_B really is the inverse of B by
+# matrix multiplying it by B and checking that the result is
+# the identity matrix
+inverse_of_B %*% B
+```
+
+<div class="under-the-bonnet">
+
+### Where are all the zeroes?
+
+You\'ll notice that the last calculation, for $\mathbf{B^{-1}B}$, resulted in a matrix with 1 in the diagonal cells, but with some very small values in the off-diagonal cells, where we were expecting zeroes (since the result should be an identity matrix of order (3, 3)). This is because numeric (floating-point) computation on digital computers is not exact, even on modern 64-bit computers -- it is only an approximation, and rounding errors in the computations may result in very small residual values being returned instead of zero. This is not a characteristic of only $\textsf{R}$ -- all software that is commonly used for statistics shares these characteristics, which are an inherent feature (or limitation) of the underlying hardware on which the software runs. In most cases, these errors are so tiny that it makes little or no difference to our results, but it does spoil the effect when we were expecting to see a nice, clear identity matrix. Of course, we can readily use the `round()` function to convert the close-to-zero values to zero, even when we round the values at the 14th decimal place -- in other words, the errors are **very** small!
+
+```{r compute-inverse-b-solve_set-up, echo=FALSE}
+B <- matrix(c(1,3,2,4,5,6,8,7,9), ncol = 3, byrow = TRUE)
+inverse_of_B <- solve(B)
+```
+
+```{r round-inverse-b, echo=TRUE, exercise=TRUE, exercise.setup="compute-inverse-b-solve_set-up"}
+
+inverse_of_B %*% B
+
+# now round the values to the nearest 0.00000000000001
+round(inverse_of_B %*% B, digits=14)
+```
+
+</div>
+
+## Diagonal matrices
+
+There is one type of matrix for which the computation of the inverse is nearly trivial: diagonal matrices. recall that diagonal matrices are square matrices of the form:
+
+$$ 
+\mathbf{A}  = 
+ \begin{bmatrix}
+  a_{11} & 0      & 0      & \ldots & 0 \\
+  0      & a_{22} & 0      & \ldots & 0 \\
+  0      & 0      & a_{33} & \ldots & 0 \\
+  \vdots & \vdots & \vdots & \ddots & \vdots  \\
+  0      & 0      & \ldots & 0      & a_{kk} 
+ \end{bmatrix}
+$$
+
+It can be shown that the inverse of **A** is the following:
+
+$$
+\mathbf{A}^{-1}  = 
+ \begin{bmatrix}
+  a_{11}^{-1} & 0      & 0      & \ldots & 0 \\
+  0      & a_{22}^{-1} & 0      & \ldots & 0 \\
+  0      & 0      & a_{33}^{-1} & \ldots & 0 \\
+  \vdots & \vdots & \vdots & \ddots & \vdots  \\
+  0      & 0      & \ldots & 0      & a_{kk}^{-1} 
+ \end{bmatrix}
+$$
+
+If we matrix multiply $\mathbf{AA}^{−1}$ we will get $\mathbf{I}_k$. Let\'s verify that using $\textsf{R}$, which handily provides the `diag()` function to construct diagonal matrices (note: the `diag()` function actually has four separate uses related to diagnonal matrices -- see the manual page for the function for details, by typing `?diag` at the $\textsf{R}$ console prompt).
+
+```{r diagonal-matrices-a, echo=TRUE, exercise=TRUE, exercise.lines=16}
+# create a diagonal matrix
+A <- diag(c(1,3,2,4,6,5))
+A
+
+# calculate the inverse of A
+inverse_A <- solve(A)
+inverse_A
+
+# check, this should be the order (6, 6) identity matrix
+inverse_A %*% A
+
+# check that programmatically!
+# create the order (6, 6) identity matrix
+I_6 <- diag(1, 6)
+I_6
+```
+
+### Activity
+
+As data scientists, we shouldn\'t just check the equivalence of results by eye, we should also check them programmatically. Write some $\textsf{R}$ code to check that `inverse_of_A %*% A` does indeed equal the order (6, 6) identity matrix.
+
+```{r check-identity-setup, echo=FALSE}
+# create a diagonal matrix
+A <- diag(c(1,3,2,4,6,5))
+# calculate the inverse of A
+inverse_A <- solve(A)
+# create the order (6, 6) identity matrix
+I_6 <- diag(1, 6)
+```
+
+```{r check-identity-hint, echo=FALSE}
+# are they identical?
+identical(inverse_A %*% A, diag(1, 6))
+```
+
+```{r check-identity, echo=TRUE, exercise = TRUE}
+
+```
+
+## Conditions for singularity
+
+Earlier we talked about the simple algebraic problem of solving for $x$, and we showed that we needed to premultiply by $x^{−1}$ to solve a system of equations. This is the same operation as division. In scalar algebra, there is one number for which the inverse is not defined: 0. The quantity $\frac{1}{0}$ is not defined. 
+
+Similarly, in matrix algebra there are a set of matrices for which an inverse does not exist. Remember our formula for the inverse of our matrix $\mathbf{A}$:
+
+$$
+\mathbf{A}^{-1} = 
+\frac{1}{\begin{vmatrix} \mathbf{A} \end{vmatrix}} 
+\textrm{adj}(\mathbf{A})
+$$
+
+So, under what conditions will this not be defined? 
+
+The answer is when the fraction $\frac{1}{\begin{vmatrix} \mathbf{A} \end{vmatrix}}$ is not defined. This occurs, of course, if the determinant of $\mathbf{A}$ equals zero. In that case, the inverse of $\mathbf{A}, $\mathbf{A}^{-1}$ is not defined.
+
+For what sorts of matrices is this a problem? It can be shown that matrices that have rows or columns that are _linearly dependent_ on other rows or columns have determinants that are equal to zero. For these matrices, the determinant is undefined. 
+
+Let\'s consider an order (_k_, _k_) matrix $\mathbf{A}$, that we will denote using column vectors notation:
+
+$$
+\mathbf{A} = 
+\begin{bmatrix}
+\mathbf{a_1} &
+\mathbf{a_1} &
+\ldots &
+\mathbf{a_k} 
+\end{bmatrix}
+$$
+
+Each of the column vectors $\mathbf{a_i}$ is of order (_k_, 1). A column $\mathbf{a_i}$ of $\mathbf{A}$ is said to be linearly independent of the others if there exists no set of scalars $\alpha_j$ such that:
+
+$$
+\mathbf{a_i} = 
+\sum_{j \ne i} \alpha_j\mathbf{a_j}
+$$
+
+In words, given the rest of the columns in our matrix, if we cannot find a weighted sum to get the column we are interested in, then we can say that that column is _linearly independent_. If we **can** find a weighted sum of the other columns that will give us values the same as the column of interest, then we say that that column is _linearly dependent_ (on some other columns in the matrix).
+
+This lets us define the term _rank_. The _rank_ of a matrix is defined as the number of **linearly independent** columns (or rows) of a matrix. If all of the columns are independent, then we say that the matrix is of _full rank_. We denote the rank of a matrix as $\textrm{r}(\mathbf{A})$. By definition, $\textrm{r}(\mathbf{A})$ is an integer that can take values from 1 to _k_ (where _k_ is the number of columns in the matrix). The rank of a matrix is something that is quite difficult to compute by hand, but can be computed by software packages using several methods. 
+
+First let\'s calculate the determinant of this matrix:
+
+$$
+\begin{vmatrix}
+2 & -4 \\
+3 & -6 \\
+\end{vmatrix}
+= (2 \times -6) - (3 \times -4) = -12 + 12 = 0
+$$
+
+Notice that the second column is -2 times the first column -- thus it is linearly dependent, and thus the matrix is of rank 1, and thus not of full rank.
+
+We can verify this using $\textsf{R}$. The `rankMatrix()` function in the `Matrix` library in $\textsf{R}$ will compute the rank of a matrix (see the manual pages for it for details). 
+
+```{r compute-rank-a, exercise=TRUE, echo=TRUE}
+A <- matrix(c(2, -4, 3, -6), byrow=TRUE, ncol=2)
+A
+
+det(A)
+
+Matrix::rankMatrix(A)[[1]]
+```
+
+## Activity: invertible or not?
+
+Here is an order (3, 3) matrix **D**:
+
+$$
+\mathbf{D} = 
+\begin{bmatrix}
+1 & 2 & 4 \\
+3 & 0 & 6 \\
+5 & 3 & 13 \\
+\end{bmatrix}
+$$
+
+Write some $\textsf{R}$ code below to calculate its determinant and rank, and thereby conclude whether it is invertible or not?
+
+If it is not invertible, or not of full rank, why not?
+
+```{r invertible-or-not-hint-1}
+# define the matrix
+D <- matrix(c(1, 3, 5, 2, 0, 3, 4, 6, 13), ncol=3)
+```
+
+```{r invertible-or-not-hint-2}
+# get the determinant of the matrix
+det(D)
+```
+
+```{r invertible-or-not-hint-3}
+# find the rank of the matrix
+Matrix::rankMatrix(D)[[1]]
+```
+
+```{r invertible-or-not-hint-4}
+# Notice that that the first column times 2 plus the second column
+# equals the third column. The rank of this matrix is 2 – it is not
+# of full rank.
+```
+
+```{r invertible-or-not, exercise=TRUE}
+
+```
+
+## A video interlude
+
+A useful YouTube video that recaps a few points covered above.
+
+![](https://www.youtube.com/watch?v=1QYdrMRhNJs&vq=large)
+
+## Inverses and nomenclature
+
+Here are some important facts about inverses and their nomenclature:
+
+* a matrix must be square for it to be invertible, although not all square matrices are invertible.
+* if the inverse of a matrix does not exist, we say that it is _singular_ or that a _singularity_ exists.
+* the following statements are equivalent: _full rank_ = _nonsingular_ = _invertable_. All of these imply that $\mathbf{A^{-1}}$ exists.
+* if the determinant of $\mathbf{A}$ equals zero, then $\mathbf{A}$ is said to be singular, or not invertable. More generally, if $\begin{vmatrix}\mathbf{A} \end{vmatrix} = 0$ then $\mathbf{A}$ is singular.
+* if the determinant of $\mathbf{A}$ is non-zero, then $\mathbf{A}$ is said to be nonsingular, or invertable. In
+other words, the inverse exists. More generally, if $\begin{vmatrix}\mathbf{A} \end{vmatrix} \ne 0$ then $\mathbf{A}$ is nonsingular.
+* if a matrix $\mathbf{A}$ is not of full rank, it is not invertable -- that is, it is singular.
+
+## Why does any of this matter?
+
+At this point, you may be asking yourself why any of this matters. The reason is that matrices are particularly useful when solving systems of equations, which is exactly what we need to do when fitting linear regression models using least squares estimators, as we will see in the next chapter of this course.
+
+Consider this set of three equations with three unknowns:
+
+$$
+\begin{align}
+\begin{split}
+x + 2y + z & = 3 \\
+3x - y - 3z & = -1 \\
+2x + 3y + z & = 4 \\
+\end{split}
+\end{align}
+$$
+
+How would one go about solving this? There are various techniques, including substitution, and multiplying equations by constants and adding them to get single variables to cancel. However, all of that requires symbolic manipulation and doesn\'t scale well to very large systems of equations.
+
+But there is an easier way, and that is to use a matrix. Note that the system of equations above can be represented as follows:
+
+$$
+\begin{bmatrix}
+1 & \phantom{-} 2 & \phantom{-}1 \\
+3 & -1 & -3 \\
+2 & \phantom{-}3 & \phantom{-}1 \\
+\end{bmatrix} 
+\begin{bmatrix}
+x \\
+y \\
+z \\
+\end{bmatrix} = 
+\begin{bmatrix}
+\phantom{-} 3 \\
+-1 \\
+\phantom{-} 4 \\
+\end{bmatrix}
+\Longleftrightarrow 
+\mathbf{Ax} = \mathbf{b}
+$$
+
+We can solve the problem $\mathbf{Ax} = \mathbf{b}$ by pre-multiplying both sides by $\mathbf{A^{−1}}$ and simplifying. This yields the following:
+
+$$
+\begin{align}
+\begin{split}
+\mathbf{Ax} & = \mathbf{b} \\
+\mathbf{A^{-1}Ax} & = \mathbf{A^{-1}b} \\
+\mathbf{x} & = \mathbf{A^{-1}b} \\
+\end{split}
+\end{align}
+$$
+
+remembering that $\mathbf{A^{-1}A} = 1$.
+
+We can therefore solve a system of equations by computing the inverse of $\mathbf{A}$, and multiplying it by **b**. Cool!
+
+Here is out matrix **A** and its inverse:
+
+$$
+\mathbf{A} = 
+\begin{bmatrix}
+1 & \phantom{-} 2 & \phantom{-}1 \\
+3 & -1 & -3 \\
+2 & \phantom{-}3 & \phantom{-}1 \\
+\end{bmatrix} \qquad
+\mathbf{A}^{-1} = 
+\begin{bmatrix}
+\phantom{-} 8 & \phantom{-} 1 & -5 \\
+-9 & -1 & \phantom{-} 6 \\
+\phantom{-} 11 & \phantom{-} 1 & -7 \\
+\end{bmatrix}
+$$
+
+So now we can solve this system of simultaneous equations:
+
+$$
+\mathbf{x} = \mathbf{A^{-1}b} =
+\begin{bmatrix}
+\phantom{-} 8 & \phantom{-} 1 & -5 \\
+-9 & -1 & \phantom{-} 6 \\
+\phantom{-} 11 & \phantom{-} 1 & -7 \\
+\end{bmatrix}
+\begin{bmatrix}
+\phantom{-} 3 \\
+-1 \\
+\phantom{-} 4 \\
+\end{bmatrix}
+=
+\begin{bmatrix}
+\phantom{-} 3 \\
+-2 \\
+\phantom{-} 4 \\
+\end{bmatrix}
+$$
+
+If we substitute the values 3, -2 and 4 into our system of equations in place of _x_, _y_ and _z_, we see that we have indeed solved these simultaneous equations! This is why the function in $\textsf{R}$ to invert a matrix is called `solve()`!
+
+$$
+\begin{align}
+\begin{split}
+x + 2y + z & = 3 \quad & \Longleftrightarrow  \quad 3 + (2 \times -2) + 4 = 3 \\
+3x - y - 3z & = -1 \quad & \Longleftrightarrow \quad (3 \times 3) - (-2) - (3 \times 4) = -1 \\
+2x + 3y + z & = 4 \quad & \Longleftrightarrow \quad (2 \times 3) + (3 \times -2) + 4 = 4 \\
+\end{split}
+\end{align}
+$$
+
+This approach only works, however, if the matrix **A** is nonsingular. If it is not invertable, then this will not work. In fact, if a row or a column of the matrix **A** is a linear combination of the others, there are no solutions to the system of equations, or there are many solutions to the system of equations. In either case, the system is said to be _underdetermined_. We can compute the determinant of a matrix to see if it in fact is underdetermined.
+
+Let\'s repeat the calculations above using the `solve()` function in $\textsf{R}$. Although we have used `solve()` to invert matrices when passed a single argument, the manual page for `solve()` actually states the following:
+
+```
+This generic function solves the equation a %*% x = b for x, where b can be either a vector or a matrix.
+
+Usage
+
+solve(a, b, ...)
+```
+
+So we can pass `solve()` the matrix **A** and colum vector **b** as defined above, derived from out system of equations, and expect it to return the column vector **x** containing the values of _x_, _y_ and _z_ that solve the simultaneous equations. Let\'s try:
+
+```{r does-solve-work, exercise=TRUE, echo=TRUE}
+A <- matrix(c(1, 3, 2, 2, -1, 3, 1, -3, 1), ncol=3)
+A
+
+b <- matrix(c(3, -1, 4), ncol=1)
+b
+
+x <- solve(A, b)
+x
+
+# check if we get the expected answer
+if (all.equal(x, matrix(c(3, -2, 4), ncol=1))) {
+  print("It works!")
+}
+```
+
+```{r quiz-final}
+quiz(caption="One last question...",
+  question("Is the ability to use matrix algebra to solve a system of simultaneous equations extremely cool?",
+    answer("Yes, it is.", correct=TRUE),
+    answer("No, not really."),
+    random_answer_order = TRUE,
+    allow_retry = TRUE
+  )
+)
+```
+
+## Geometric approaches to linear algebra
+
+These notes have taken a fairly traditional, notational or symbolic approach to matrix algebra. However, there are other ways of looking at and thinking about many of the concepts -- in particular, it is possible to think about scalars, vectors and matrices in geometric terms. There is a series of really excellent videos by Grant Sanderson, who is better known as [3Blue1Brown](http://www.3blue1brown.com) available on YouTube which provides a fantastic introduction to linear algebra from a geometric perspective (pun intended). Such geometric explanations may be helpful for those who struggle with the purely symbolic approach, as Grant explains in the first video, below, and they may provide deeper insights for those who are already familiar with traditional, notational and symbolic approaches to matrices and linear algebra. The full series of these videos can be found on [YouTube](https://www.3blue1brown.com/essence-of-linear-algebra).
+
+Note that there is a minor error in this video: at around 30 seconds in, there is a typo in how the determinant is written, which should be $ad - bc$ (we cover determinants in a later section of this tutorial).
+
+![](https://www.youtube.com/watch?v=kjBOesZCoqc&vq=hd720)
+
+## In the next chapter...
+
+Congratulations on working through this chapter! In the next chapter we\'ll see how all this matrix algebra is used to fit linear models (and in later chapters, generalised linear models).
+

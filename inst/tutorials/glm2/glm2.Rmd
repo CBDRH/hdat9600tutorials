@@ -1,0 +1,480 @@
+---
+title: "HDAT9600 Generalised Linear Models 2"
+tutorial:
+  id: "au.edu.unsw.cbdrh.hdat9600.tutorials.glm2"
+output:
+  learnr::tutorial:
+    progressive: false
+    allow_skip: true
+    css: css/tutorials.css
+runtime: shiny_prerendered
+description: "Model selection, goodness of fit and estiamtion problems in logistic models"
+---
+
+![](images/UNSW_2017_Big_Data_landscape.jpg){width="75%"}
+
+```{r setup, include=FALSE, echo=FALSE, message=FALSE, warning=FALSE}
+
+## required packages not installed during tutorial package installation,
+# libs <- c("caret", "e1071", "DescTools", "kableExtra")
+# missing <- !libs %in% installed.packages()
+# if (any(missing)) {
+#   install.packages(libs[missing],repos="https://cloud.r-project.org", dependencies = TRUE)
+# }
+
+library(learnr)
+library(ggplot2)
+library(dplyr)
+library(car)
+library(shiny)
+library(faraway)
+library(knitr)
+library(kableExtra)
+library(lmtest)
+library(sandwich)
+
+knitr::opts_chunk$set(echo = FALSE)
+
+data(orings, package="faraway")
+
+```
+
+```{r server-setup, context="server"}
+# do not use - it interferes with the learnr "Start over" functionality
+# session$onSessionEnded(stopApp)
+```
+
+## Introduction
+
+<span class="copyright">© Copyright 2021 UNSW Sydney. All rights reserved except where otherwise stated.</span>
+
+This chapter is also closely based on Chapter 2 of the second set text for the HDAT9600 course: Julian J. Faraway. Extending the Linear Models with R. 2nd Edition. CRC Press. This text is referred to as _Faraway ELMwR_ in these notes. Although you are encouraged to use this text for additional readings, this is not essential --- these notes have abstracted all the salient points from this text for the material covered by this course.
+
+In this chapter we will continue to further consider logistic regression.  Specifically, we will consider model (covariate) selection, before looking at estimation problems for logistic models fitted to some data set.
+
+
+```{r binary-set-up, echo=FALSE, exercise=FALSE}
+data(wcgs, package="faraway")
+wcgs$chdi <- unclass(wcgs$chd) - 1
+
+```
+
+
+## Model selection
+
+We omitted any discussion of model selection in previous chapters, but the brief discussion of the subject here also applies, in the most part, to linear models. For a treatment of model selection in the context of linear models, see Faraway LMwR Chapter 10.
+
+So far we have only fitted a very minimal model to the `wcgs` dataset. There are several other potential predictor variables in the dataset which might be useful in constructing a better model. How should we go about identifying a useful subset of those potential predictors?
+
+Well, the most important considerations are those that use existing knowledge of the underlying mechanisms that generated the data --- in this case, that is knowledge of the underlying causes of and factors definitely associated with heart disease. From background knowledge, it is very certain that smoking is a cause of heart disease, as is high blood pressure. Thus we would always want to include those as predictors. High cholesterol has also been strongly associated with heart disease, although recently the strength of that association has been questioned in some circumstances. Likewise overweight and obesity is known to be associated with heart disease, although whether it acts independently of blood pressure and cholesterol is a bit less clear. Nevertheless, we almost certainly want to include cholesterol  as a predictor. But there is less background theory or evidence to guide us regarding the behaviour and personality variables, or the effect of [_arcus senilis_](https://en.wikipedia.org/wiki/Arcus_senilis).
+
+Thus, a reasonable approach is to use inferential methods to guide model construction, but to also combine them with our background knowledge. There are various methods of using inference for model selection, but we'll consider _backwards selection_ here. It works like this:
+
+1.  We start with a full model that uses all available predictor variables, possibly with derived predictors in the form of transformations or interactions between predictors.
+2.  We compare this full model with all the models containing one less predictor, computing the _p_-value corresponding to each dropped predictor variable. As we have seen, the `drop1()` function makes doing this easy.
+3.  We then eliminate the predictor variable with the largest _p_-value that is greater than some predefined critical value (say 0.05).
+4.  Go to step 1 and repeat until no more predictor variable meet the criterion for elimination.
+
+Faraway has the following to say about this method:
+
+> "Unfortunately, this is an inferior procedure. Although the algorithm is simple to use, it is hard to identify the problem to which it provides a solution. It does not act to identify the best set of predictors for predicting future responses. It is not a reliable indication of which predictors are the best explanation for the response. Even if one believes the fiction that there is a true model, this procedure would not be best for identifying such a model."
+
+A better approach is to use the _Akaike information criterion_ (AIC). For a model with likelihood $L$ and number of parameters $q$, it is defined as:
+
+$$
+AIC = -2\textrm{log} L + 2q
+$$
+
+The recommended procedure is to select the model with the smallest AIC value among those under consideration. Models under consideration should be specified based on background knowledge as far as possible, but an exhaustive search through all possible models using all available predictors is also acceptable practice, as long as theory and background knowledge is brought to bear on the final choice of model. Because constant terms (eg the intercept) can be ignored when comparing models, an alternative definition is
+
+$$ AIC = \textrm{deviance} + 2q $$.
+
+If there are many available predictors and we are considering all possible subsets of them, the `step()` function will carry out a more efficient sequential search of the model space. We'll define a new variable, BMI (body mass index) --- a constant of 703 is needed to convert from the Imperial units used in the dataset to metric as required for BMI.
+
+```{r model-selection-a, echo=TRUE, exercise=TRUE, fig.width=8, fig.height=8, output.width="90%", exercise.setup="binary-set-up", message=FALSE, warning=FALSE}
+# define BMI variable
+wcgs$bmi <- with(wcgs, 703*weight/height^2)
+
+# fit a full model using all available predictors
+logmod_full <- glm(chdi ~ age + height + weight + bmi + sdp + dbp + chol + dibep + cigs + arcus, family=binomial, data=wcgs)
+
+# search the model space for a reduced model using the step() function
+logmod_reduced <- step(logmod_full, trace=1)
+summary(logmod_reduced)
+```
+
+We can see that after three iterations, the procedure has decided to remove `weight` and `dbp` (diastolic blood pressure). If the goal is a predictive model, those choices might be acceptable, but if the goal is to assess the relative importance of risk factors, then we might want to leave all the variables in the model. The elimination of weight, given that BMI and height are retained, is not surprising, but current medical knowledge suggests that diastolic BP is a risk factor for heart disease that is at least somewhat independent of systolic BP, and for that reason one might want to retain it. Indeed, diastolic BP by itself is a highly significant predictor:
+
+```{r model-selection-b, echo=TRUE, exercise=TRUE, fig.width=8, fig.height=8, output.width="90%", exercise.setup="binary-set-up", message=FALSE, warning=FALSE}
+drop1(glm(chdi ~ dbp, family = binomial, data=wcgs), test="Chi")
+```
+
+Thus, automated model selection is not a silver bullet nor a magic wand, and the analyst's brain must still be engaged!
+
+## Goodness of fit
+
+As mentioned earlier, the deviance cannot be used as a measure of goodness of fit for binary GLMs, although it can be for other types of GLM. Diagnostic plots can help us identify poorly fitting observations and other problems with the model, but they don't give us an indication of overall model fit. 
+
+However, the process of binning which we used in a previous section to examine residuals can also be used in assessing goodness-of-fit. First we divide the observations in $J$ bins based on the fitted values of the linear predictor.
+
+We'll call the mean response in the _j_^th^ bin $y_j$ and the mean predicted probability in that bin $\widehat{p}_j$ based on the $m_j$ observations in that bin.
+
+The (common-sense) idea behind the test is that when we make a prediction with probability $p$, we would hope that the event occurs in practice with the same probability. We can check that by plotting the observed proportions in each bin against the predicted probability for that bin. This is known as the _calibration_ of the model. For a well calibrated model, the observed proportions and the predicted probabilities should be close. 
+
+Examine the following code and read the comments carefully to ensure that you understand what it is doing before running it.
+
+```{r goodness-of-fit-a-set-up, echo=FALSE, exercise=FALSE}
+wcgs$chdi <- unclass(wcgs$chd) - 1
+wcgs$bmi <- with(wcgs, 703*weight/height^2)
+wcgs_nm <- na.omit(wcgs)
+```
+
+```{r goodness-of-fit-a, echo=TRUE, exercise=TRUE, fig.width=8, fig.height=8, output.width="90%", exercise.setup="goodness-of-fit-a-set-up", message=FALSE, warning=FALSE, exercise.lines=27}
+# fit the full model
+logmod_full <- glm(chdi ~ age + height + weight + bmi + sdp + dbp + chol + dibep
+                          + cigs + arcus, family=binomial, data=wcgs)
+
+# remove observations with missing values from the data frame, 
+# because they are automatically dropped by glm()
+wcgs_nm <- na.omit(wcgs)
+
+# add predicted probabilities to the data frame
+wcgs_nm %>% mutate(predprob=predict(logmod_full, type="response"),
+                   linpred=predict(logmod_full)) %>%
+# group the data into bins based on the linear predictor fitted values
+group_by(cut(linpred, breaks=unique(quantile(linpred, (1:50)/51)))) %>%
+# summarise by bin
+summarise(chdi_bin=sum(chdi), predprob_bin=mean(predprob), n_bin=n()) %>%
+# add the standard error of the mean predicted probaility for each bin
+mutate(se_predprob_bin=sqrt(predprob_bin*(1 - predprob_bin)/n_bin)) %>%
+# plot it with 95% confidence interval bars
+ggplot(aes(x=predprob_bin, 
+           y=chdi_bin/n_bin, 
+           ymin=chdi_bin/n_bin - 1.96*se_predprob_bin,
+           ymax=chdi_bin/n_bin + 1.96*se_predprob_bin)) +
+  geom_point() + geom_linerange(colour="orange", alpha=0.4) +
+  geom_abline(intercept=0, slope=1) + 
+  labs(x="Predicted probability (binned)",
+       y="Observed proportion (in each bin)")
+```
+
+Although there is some variation from the ideal calibration line, it appears to be random and evenly distributed, and is not deviating consistently in any one direction. Also, the 95% CIs for each bin are almost all overlapping the ideal calibration line (which is observed proportion = predicted probability).
+
+The Hosmer-Lemeshow statistic is the formal version of this assessment:
+
+$$
+X_{HL}^2 = \sum_{j=1}^{J} \frac{(y_j - m_j \widehat{p}_j)^2}
+                               {m_j \widehat{p}_j ( 1 - \widehat{p}_j)}
+$$
+
+This statistic is distributed approximately as a $\chi^2$ with $J - 1$ degrees of freedom. However, there is choice of bin size - the goal is to have enough observations in each bin so that the approximation to the $\chi^2$ distribution is adequate, but not so few bins that the calibration is barely tested. 
+
+We can calculate it:
+
+```{r goodness-of-fit-b, echo=TRUE, exercise=TRUE, fig.width=8, fig.height=8, output.width="90%", exercise.setup="goodness-of-fit-a-set-up", message=FALSE, warning=FALSE, exercise.lines=17}
+logmod_full <- glm(chdi ~ age + height + weight + bmi + sdp + dbp + chol + dibep
+                          + cigs + arcus, family=binomial, data=wcgs)
+wcgs_nm <- na.omit(wcgs)
+wcgs_nm %>% mutate(predprob=predict(logmod_full, type="response"),
+                   linpred=predict(logmod_full)) %>%
+group_by(cut(linpred, breaks=unique(quantile(linpred, (1:50)/51)))) %>%
+summarise(chdi_bin=sum(chdi), predprob_bin=mean(predprob), n_bin=n()) %>%
+mutate(se_predprob_bin=sqrt(predprob_bin*(1 - predprob_bin)/n_bin)) -> hl_df
+
+hl_stat <- with(hl_df, sum( (chdi_bin - n_bin*predprob_bin)^2 /
+                            (n_bin* predprob_bin*(1 - predprob_bin))))
+hl <- c(hosmer_lemeshow_stat=hl_stat, hl_degrees_freedom=nrow(hl_df) - 1)
+hl
+
+# calculate p-value
+c(p_val=1 - pchisq(hl[1], hl[2]))
+```
+
+A non-significant _p_-value indicates no lack-of-fit --- thus it is really a test for lack-of-fit, rather than a metric for goodness-of-fit. If the _p_-value for the Hosmer-Lemeshow test is close to the critical value (arbitrarily and customarily 0.05), then it is worth doing a sensitive analysis using different numbers of bins, because it is somewhat sensitive to this parameter, which needs to be arbitrarily chosen.
+
+## Score tests
+
+It would be nice to have a test of goodness of fit that wasn't dependent on arbitrary binning methods. _Scoring_ methods arose out of meteorology, where weather forecasters wanted to assess how good their predictions were.
+
+The most popular scoring method is _logarithmic scoring_: $y \cdot \textrm{log} (\widehat{p}) + (1 - y) \cdot \textrm{log} (1 - \widehat{p})$. Thus, if event $y = 1$ occurs, the score is $\textrm{log}(\widehat{p})$, and $\textrm{log}(1 - \widehat{p})$ if the event does not occur $y = 0$. Better prediction methods have lower scores. The method fails if any of the $\widehat{p} = 1$ because the score is then $- \infty$.
+
+An alternative to the logarithmic score is the Brier score:
+
+$$
+BS = \frac{1}{N} \sum_{i = 1}^{N} (\widehat{p}_i - y_i)^2
+$$
+This is in effect the mean squared error of the forecast. So the Brier score gives us:
+
+* if $\widehat{p}_i$ = 1 (the event is predicted to certainly happen) and $y_i$ = 1 (the event happens), then the Brier Score is 0, the best score achievable
+* if $\widehat{p}_i$ = 1 (the event is predicted to certainly happen) and $y_i$ = 0 (the event doesn't happen), then the Brier Score is 1, the worst score achievable
+* if $\widehat{p}_i$ = 0.7  and $y_i$ is 1 (the event happens), then the Brier Score is (0.7 - 1)^2^ = 0.09
+* if $\widehat{p}_i$ = 0.3  and $y_i$ is 1 (the event happens), then the Brier Score is (0.3 - 1)^2^ = 0.49
+* if $\widehat{p}_i$ = 0.5, then the Brier Score is (0.5 - 1)^2^ = (0.5 - 1)^2^ = 0.25, regardless of whether the event happens or not
+* and so on...
+
+The mean of the logarithmic or Brier scores across the entire data set is used as the overall score. A lower score is better.
+
+Let's calculate the Brier score for our logistic model:
+
+```{r goodness-of-fit-c, echo=TRUE, exercise=TRUE, fig.width=8, fig.height=8, output.width="90%", exercise.setup="goodness-of-fit-a-set-up", message=FALSE, warning=FALSE}
+# we'll exclude observations with missing data fist
+wcgs_nm <- na.omit(wcgs)
+
+# fit the full model
+logmod_full <- glm(chdi ~ age + height + weight + bmi + sdp + dbp + chol + dibep
+                          + cigs + arcus, family=binomial, data=wcgs_nm)
+
+# get the predicted probabilities
+predprob <- predict(logmod_full, type="response")
+
+# calculate the mean Brier score
+Brier_score <- mean((predprob - wcgs_nm$chdi)^2)
+Brier_score
+```
+
+Let's repeat that with the smaller model:
+
+```{r goodness-of-fit-d, echo=TRUE, exercise=TRUE, fig.width=8, fig.height=8, output.width="90%", exercise.setup="goodness-of-fit-a-set-up", message=FALSE, warning=FALSE}
+# we'll exclude observations with missing data fist
+wcgs_nm <- na.omit(wcgs)
+
+# fit the smaller model
+logmod_small <- glm(chdi ~ sdp + cigs + arcus, family=binomial, data=wcgs_nm)
+
+# get the predicted probabilities
+predprob <- predict(logmod_small, type="response")
+
+# calculate the mean Brier score
+Brier_score <- mean((predprob - wcgs_nm$chdi)^2)
+Brier_score
+```
+
+Lower is better.
+
+## Confusion matrix
+
+The model can be used to predict the outcome for each subject in the data set --- that is, it can act as a classifier. We use a rule such that when $\widehat{p}_i \lt 0.5$ we classify the case as no heart disease predicted, and when $\widehat{p}_i \ge 0.5$ we classify the case as heart disease predicted. We can then cross-tabulate these predicted classification against the actual outcomes --- this is known as a _confusion matrix_.
+
+```{r goodness-of-fit-e, echo=TRUE, exercise=TRUE, fig.width=8, fig.height=8, output.width="90%", exercise.setup="goodness-of-fit-a-set-up", message=FALSE, warning=FALSE}
+# this is the model we are evaluating
+logmod_full <- glm(chdi ~ age + height + weight + bmi + sdp + dbp + chol + dibep
+                          + cigs + arcus, family=binomial, data=wcgs_nm)
+
+wcgs_nm %>% mutate(predprob=predict(logmod_full, type="response")) %>%
+            mutate(pred_outcome=ifelse(predprob < 0.5, "no", "yes")) -> wcgs_nm
+
+xtabs(~ chd + pred_outcome, data=wcgs_nm)
+```
+
+Pretty good! The correct classification rate is:
+
+```{r goodness-of-fit-f, echo=TRUE, exercise=TRUE, fig.width=8, fig.height=8, output.width="90%", exercise.setup="goodness-of-fit-a-set-up", message=FALSE, warning=FALSE}
+(2882 + 2) / (2882 + 3 + 253 + 2)
+```
+
+Thus the error rate (also known as the misclassification rate) is about 8%.
+
+Now we are in the familiar territory of _specificity_, _sensitivity_, _positive predictive value_ and _negative predictive value_ (see the relevant chapter in the HDAT9200 course for notes on these).
+
+The specificity for our model is 2882 / (2882 + 3) = 0.999, which is very high. However, the _sensitivity_, that is the proportion of cases who developed heart disease who were correctly predicted to do so by the model is 2 / (253 + 2) = 0.00784, which is very low. Thus our prediction method is very unlikely to detect which men will go on to develop heart disease. Thus the apparently good error rate of just 8% conceals a very poor sensitivity --- a common occurrence when trying to predict rare outcomes.
+
+The _caret_ library, which is used for testing many different machine learning methods (including linear and logistic regression), provides some handy functions for calculating a range of metrics based on the confusion matrix:
+
+```{r goodness-of-fit-f2, echo=TRUE, exercise=TRUE, fig.width=8, fig.height=8, output.width="90%", exercise.setup="goodness-of-fit-a-set-up", message=FALSE, warning=FALSE}
+# this is the model we are evaluating
+logmod_full <- glm(chdi ~ age + height + weight + bmi + sdp + dbp + chol + dibep
+                          + cigs + arcus, family=binomial, data=wcgs_nm)
+
+wcgs_nm %>% mutate(predprob=predict(logmod_full, type="response")) %>%
+            mutate(pred_outcome=as.factor(ifelse(predprob < 0.5, "no", "yes"))) -> wcgs_nm
+
+# load the library
+library(caret)
+
+confusionMatrix(wcgs_nm$pred_outcome, wcgs_nm$chd, positive = "yes")
+```
+
+Of course, the 0.5 probability threshold we used is also arbitrary, and we can easily increase sensitivity at the expense of decreasing specificity by simply decreasing the threshold, and _v-v_.
+
+## ROC curve
+
+Let's compute both the sensitivity and specificity of our model predictions, sweeping the probability threshold across a range of values up to 0.5, and then plot the results against the values of the probability threshold.
+
+```{r goodness-of-fit-g, echo=TRUE, exercise=TRUE, fig.width=8, fig.height=8, output.width="90%", exercise.setup="goodness-of-fit-a-set-up", message=FALSE, warning=FALSE, exercise.lines=22}
+# this is the model we are evaluating
+logmod_full <- glm(chdi ~ age + height + weight + bmi + sdp + dbp + chol + dibep
+                          + cigs + arcus, family=binomial, data=wcgs_nm)
+
+# add the predicted probailities to the data frame
+wcgs_nm %>% mutate(predprob=predict(logmod_full, type="response")) -> wcgs_nm
+
+thresholds <- seq(0.01, 0.5, by=0.01)
+sensitivities <- numeric(length(thresholds))
+specificities <- numeric(length(thresholds))
+
+for (i in seq_along(thresholds)) {
+  pp <- ifelse(wcgs_nm$predprob < thresholds[i], "no", "yes")
+  xx <- xtabs( ~ chd + pp, data=wcgs_nm)
+  specificities[i] <- xx[1,1] / (xx[1,1] + xx[1,2])
+  sensitivities[i] <- xx[2,2] / (xx[2,1] + xx[2,2])
+}
+
+# plot the sensitivities and specificities
+matplot(thresholds, cbind(sensitivities, specificities), type="ll", ltyp=1:2,
+        xlab="Threshold", ylab="Proportion")
+```
+
+This illustrates that the sensitivity (solid line) falls but the specificity (dashed line) rises as the threshold is increased. Note that the real-world cost or consequences of the two kinds of error for such a classifier or diagnostic test are rarely equal, but this plot allows us to visualise the trade-off.
+
+It is more usual to plot the same information in the form of sensitivity (the true positive rate) on the y-axis and 1 - specificity (the false positive rate) on the x-axis --- this is known as the _receiver operating characteristic_ curve (ROC):
+
+```{r goodness-of-fit-h-set-up, echo=FALSE, exercise=FALSE} 
+wcgs$chdi <- unclass(wcgs$chd) - 1
+wcgs$bmi <- with(wcgs, 703*weight/height^2)
+wcgs_nm <- na.omit(wcgs)
+logmod_full <- glm(chdi ~ age + height + weight + bmi + sdp + dbp + chol + dibep
+                          + cigs + arcus, family=binomial, data=wcgs_nm)
+wcgs_nm %>% mutate(predprob=predict(logmod_full, type="response")) -> wcgs_nm
+thresholds <- seq(0.01, 0.5, by=0.01)
+sensitivities <- numeric(length(thresholds))
+specificities <- numeric(length(thresholds))
+for (i in seq_along(thresholds)) {
+  pp <- ifelse(wcgs_nm$predprob < thresholds[i], "no", "yes")
+  xx <- xtabs( ~ chd + pp, data=wcgs_nm)
+  specificities[i] <- xx[1,1] / (xx[1,1] + xx[1,2])
+  sensitivities[i] <- xx[2,2] / (xx[2,1] + xx[2,2])
+}
+```
+
+```{r goodness-of-fit-h, echo=TRUE, exercise=TRUE, fig.width=8, fig.height=8, output.width="90%", exercise.setup="goodness-of-fit-h-set-up", message=FALSE, warning=FALSE}
+# plot the ROC
+plot(1 - specificities, sensitivities, type="l",
+        xlab="1 - Specificity", ylab="Sensitivity")
+abline(0,1, lty=2)
+```
+
+A useless classifier (one that is no better than flipping a coin) would have an ROC curve that sits on the dashed diagonal line, whereas a very good classifier would have an ROC curve that is pulled right up towards the top left corner of the plot. Thus, the area under the ROC curve (often abbreviated as AUC or AUROC) can be used as a measure of performance of the classifier and used to compare different classifiers based on different models.
+
+## Pseudo-R^2^
+
+The R^2^, or proportion of variance explained, is a widely used measure of fit for normal linear models. We could apply the same concept to binomial regression models by using the proportion of deviance explained. However, a range of better statistics have been proposed over the years, collectively known as _pseudo-R^2^_ statistics. They all have various strengths and weakness, but they all aim to approximate the R^2^ statistic for linear regression. We won't go into the details of these in these notes, but references can be found on the [manual page](https://www.rdocumentation.org/packages/DescTools/versions/0.99.19/topics/PseudoR2) for the `PseudoR2()` function in the _DescTools_ package, which we will use now.
+
+```{r goodness-of-fit-i-set-up, echo=FALSE, exercise=FALSE} 
+#wcgs$chdi <- unclass(wcgs$chd) - 1
+#wcgs$bmi <- with(wcgs, 703*weight/height^2)
+#wcgs_nm <- na.omit(wcgs)
+#logmod_full <- glm(chdi ~ age + height + weight + bmi + sdp + dbp + chol + dibep
+#                          + cigs + arcus, family=binomial, data=wcgs_nm)
+```
+
+```{r goodness-of-fit-i, echo=TRUE, exercise=TRUE, fig.width=8, fig.height=8, output.width="90%", exercise.setup="goodness-of-fit-i-set-up", message=FALSE, warning=FALSE}
+logmod_small <- glm(chd ~ sdp + cigs + arcus, family=binomial, data=wcgs)
+
+# load the library
+library(DescTools)
+
+# disable printing in scientific format
+options(scipen=999)
+
+# calculate various pseudo-R-squared measures for our full logistic model
+PseudoR2(logmod_small, which = "all")
+```
+
+Note that most of these metrics have quite low values. That doesn't necessarily mean that the model fit is terrible --- pseudo-R^2^ values tend to be quite low. The real value of these scores is in comparing models:
+
+```{r goodness-of-fit-j, echo=TRUE, exercise=TRUE, fig.width=8, fig.height=8, output.width="90%", exercise.setup="goodness-of-fit-i-set-up", message=FALSE, warning=FALSE}
+logmod_medium <- glm(chd ~ age + sdp + chol + cigs + arcus, family=binomial, data=wcgs)
+
+# load the library
+library(DescTools)
+
+# disable printing in scientific format
+options(scipen=999)
+
+# calculate various pseudo-R-squared measures for our full logistic model
+PseudoR2(logmod_medium, which = "all")
+```
+
+The better fit of the medium model is evident.
+
+
+
+
+## Estimation problems in logistic models
+
+We have seen that logistic models are fitted using maximum likelihood estimation (MLE). The details of the algorithm used are given in Section 8.2 of Faraway ELMwR, if you are interested. However the algorithm may fail to converge with certain datasets --- we'll look at an example of that now, using a subset of Fisher's iris data (which you are likely to encounter over and over --- it is a data set widely used to illustrate many things).
+
+First we'll remove one of the three species from the data set and plot the data:
+
+```{r est-probs-set-up, echo=FALSE, exercise=FALSE, message=FALSE, warning=FALSE, error=FALSE}
+irisr <- iris[iris$Species != "virginica", c("Species", "Sepal.Width", "Sepal.Length")]
+# iris_logmod <- glm(Species ~ Sepal.Width + Sepal.Length, family=binomial, data=irisr)
+br_iris_logmod <- brglm::brglm(Species ~ Sepal.Width + Sepal.Length, family=binomial, data=irisr)
+```
+
+```{r est-probs-a, echo=TRUE, exercise=TRUE, exercise.setup="est-probs-set-up", fig.width=8, fig.height=8, output.width="90%"}
+# remove virginica rows from the data set
+irisr <- iris[iris$Species != "virginica", c("Species", "Sepal.Width", "Sepal.Length")]
+
+# plot the data with different symbols for each species
+ggplot(data=irisr, aes(x=Sepal.Width, y=Sepal.Length, 
+                       shape=Species, colour=Species)) + geom_point()
+```
+
+Now we'll fit a logistic model to it, attempting to predict the species based on the sepal width and length:
+
+```{r est-probs-b, echo=TRUE, exercise=TRUE, exercise.setup="est-probs-set-up", fig.width=8, fig.height=8, output.width="90%"}
+iris_logmod <- glm(Species ~ Sepal.Width + Sepal.Length, family=binomial, data=irisr)
+```
+
+Note the warning messages! Now let's look at the summary:
+
+```{r est-probs-c, echo=TRUE, exercise=TRUE, exercise.setup="est-probs-set-up", fig.width=8, fig.height=8, output.width="90%"}
+options(scipen=999) # disable scientific notation
+iris_logmod <- glm(Species ~ Sepal.Width + Sepal.Length, family=binomial, data=irisr)
+summary(iris_logmod)
+```
+
+Notice that the residual deviance is almost zero, indicating perfect (or near-perfect) fit, but despite this, none of the predictors are statistically significant. Why?
+
+There is a clue in the plot, above --- the two groups are _linearly separable_ --- it is possible to draw a straight line between them that perfectly separates them:
+
+```{r est-probs-d, echo=TRUE, exercise=TRUE, exercise.setup="est-probs-set-up", fig.width=8, fig.height=8, output.width="90%"}
+ggplot(data=irisr, aes(x=Sepal.Width, y=Sepal.Length, 
+                       shape=Species, colour=Species)) + 
+                   geom_point() + 
+                   geom_abline(intercept=2.3, slope=1)
+```
+
+The fact that we can fit the model perfectly results in unstable estimates of the $\beta$ parameters and their standard errors when the usual (Fisher scoring) fitting algorithm is used. One solution is to use _exact logistic regression_ as provided by the _elrm_ package for $\textsf{R}$, but it is also possible to use _bias reduction_ methods developed by [Firth (1993)](https://academic.oup.com/biomet/article-abstract/80/1/27/228364) and implemented in the _brglm_ package:
+
+```{r est-probs-e, echo=TRUE, exercise=TRUE, exercise.setup="est-probs-set-up", fig.width=8, fig.height=8, output.width="90%", message=FALSE, warning=FALSE}
+# load library
+library(brglm)
+
+# re-fit model using brglm()
+br_iris_logmod <- brglm(Species ~ Sepal.Width + Sepal.Length, family=binomial, data=irisr)
+
+summary(br_iris_logmod)
+```
+
+That's better! The residual deviance is small, but not zero, and the standard errors for the parameter estimates are now reasonable. Here is the line corresponding to a predicted probability of 0.5:
+
+```{r est-probs-f, echo=TRUE, exercise=TRUE, exercise.setup="est-probs-set-up", fig.width=8, fig.height=8, output.width="90%"}
+betas <- coef(br_iris_logmod)
+prob <- 0.5
+
+ggplot(data=irisr, aes(x=Sepal.Width, y=Sepal.Length, 
+                       shape=Species, colour=Species)) + 
+                   geom_point() + 
+                   geom_abline(intercept=(prob + abs(betas["(Intercept)"])) / betas["Sepal.Length"],
+                               slope= abs(betas["Sepal.Width"]) / betas["Sepal.Length"])
+```
+
+Instability can also occur in datasets which approach but do not have complete linear separability, and care must be taken in interpreting the results in such cases. 
+
+
+
+## Summary
+
+We have gone through the basics of fitting and assessing logistic models.
