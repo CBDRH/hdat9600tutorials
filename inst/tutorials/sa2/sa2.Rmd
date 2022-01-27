@@ -1,5 +1,5 @@
 ---
-title: "HDAT9600 Survival analysis 2"
+title: "HDAT9600 Survival Analysis 2"
 tutorial:
   id: "au.edu.unsw.cbdrh.hdat9600.tutorials.sa2"
 fig_width: 6 
@@ -482,19 +482,19 @@ Let's now consider fitting three PCH models to the old age mortality dataset:
 2. taking eight 5-year intervals
 3. taking ten 4-year intervals
 
-This follows the same logic as the Cox model with step function illustrated in the previous section.
+This follows the same logic as the Cox model with step function illustrated in the previous section. the `pchreg` function from the `eha` package can be used to fit proportional hazards models with piecewise constant baseline hazard(s). note the `cuts =` argument used to specify the the points in time where the hazard function jumps.
 
 ```{r 4_3, exercise=TRUE, exercise.eval=FALSE, exercise.setup = "prepare-exercises", fig.width=8, fig.height=8, output.width="90%"}
 # fitting a piecewise constant hazards distribution with four 10-year intervals
-pch10.mv1 <- phreg(Y ~ sex + civ + region, data = oldmort, dist = "pch", cuts = c(10, 20, 30))
+pch10.mv1 <- pchreg(Y ~ sex + civ + region, data = oldmort, cuts = c(10, 20, 30))
 pch10.mv1
 
 # fitting a piecewise constant hazards distribution with eight 5-year intervals
-pch5.mv1 <- phreg(Y ~ sex + civ + region, data = oldmort, dist = "pch", cuts = c(5, 10, 15, 20, 25, 30, 35))
+pch5.mv1 <- pchreg(Y ~ sex + civ + region, data = oldmort, cuts = c(5, 10, 15, 20, 25, 30, 35))
 pch5.mv1
 
 # fitting a piecewise constant hazards distribution with ten 4-year intervals
-pch4.mv1 <- phreg(Y ~ sex + civ + region, data = oldmort, dist = "pch", cuts = c(4, 8, 12, 16, 20, 24, 28, 32, 36))
+pch4.mv1 <- pchreg(Y ~ sex + civ + region, data = oldmort, cuts = c(4, 8, 12, 16, 20, 24, 28, 32, 36))
 pch4.mv1
 
 # plotting hazard, cumulative hazard, density and survivor functions

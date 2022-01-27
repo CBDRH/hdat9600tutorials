@@ -13,7 +13,7 @@
 <meta name="progressive" content="false" />
 <meta name="allow-skip" content="true" />
 
-<title>HDAT9600 Survival analysis 2</title>
+<title>HDAT9600 Survival Analysis 2</title>
 
 
 <!-- highlightjs -->
@@ -466,18 +466,18 @@ plot(g.mv1)</code></pre>
 <li>taking eight 5-year intervals</li>
 <li>taking ten 4-year intervals</li>
 </ol>
-<p>This follows the same logic as the Cox model with step function illustrated in the previous section.</p>
+<p>This follows the same logic as the Cox model with step function illustrated in the previous section. the <code>pchreg</code> function from the <code>eha</code> package can be used to fit proportional hazards models with piecewise constant baseline hazard(s). note the <code>cuts =</code> argument used to specify the the points in time where the hazard function jumps.</p>
 <div class="tutorial-exercise" data-label="4_3" data-caption="Code" data-completion="1" data-diagnostics="1" data-startover="1" data-lines="0">
 <pre class="text"><code># fitting a piecewise constant hazards distribution with four 10-year intervals
-pch10.mv1 &lt;- phreg(Y ~ sex + civ + region, data = oldmort, dist = &quot;pch&quot;, cuts = c(10, 20, 30))
+pch10.mv1 &lt;- pchreg(Y ~ sex + civ + region, data = oldmort, cuts = c(10, 20, 30))
 pch10.mv1
 
 # fitting a piecewise constant hazards distribution with eight 5-year intervals
-pch5.mv1 &lt;- phreg(Y ~ sex + civ + region, data = oldmort, dist = &quot;pch&quot;, cuts = c(5, 10, 15, 20, 25, 30, 35))
+pch5.mv1 &lt;- pchreg(Y ~ sex + civ + region, data = oldmort, cuts = c(5, 10, 15, 20, 25, 30, 35))
 pch5.mv1
 
 # fitting a piecewise constant hazards distribution with ten 4-year intervals
-pch4.mv1 &lt;- phreg(Y ~ sex + civ + region, data = oldmort, dist = &quot;pch&quot;, cuts = c(4, 8, 12, 16, 20, 24, 28, 32, 36))
+pch4.mv1 &lt;- pchreg(Y ~ sex + civ + region, data = oldmort, cuts = c(4, 8, 12, 16, 20, 24, 28, 32, 36))
 pch4.mv1
 
 # plotting hazard, cumulative hazard, density and survivor functions
@@ -776,7 +776,7 @@ output$`tutorial-exercise-4_7-output` <- renderUI({
 
 <!-- begin doc-metadata -->
 <div id="doc-metadata">
-<h2 class="title toc-ignore" style="display:none;">HDAT9600 Survival analysis 2</h2>
+<h2 class="title toc-ignore" style="display:none;">HDAT9600 Survival Analysis 2</h2>
 </div>
 <!-- end doc-metadata -->
 

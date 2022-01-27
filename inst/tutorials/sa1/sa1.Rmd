@@ -1,5 +1,5 @@
 ---
-title: "HDAT9600 Survival analysis 1"
+title: "HDAT9600 Survival Analysis 1"
 tutorial:
   id: "au.edu.unsw.cbdrh.hdat9600.tutorials.sa1"
 fig_width: 6 
