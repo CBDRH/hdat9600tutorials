@@ -18,6 +18,7 @@ library(learnr)
 library(ggplot2)
 library(car)
 library(shiny)
+library(faraway)
 
 knitr::opts_chunk$set(echo = FALSE)
 data(gala, package="faraway")

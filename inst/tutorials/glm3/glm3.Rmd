@@ -30,7 +30,7 @@ knitr::opts_chunk$set(echo = FALSE)
 
 data(orings, package="faraway")
 
-deaths <- read.csv(system.file("extdata", "game_of_thrones_deaths.csv", package="hdat9600tutorials"))
+deaths <- read.csv('data/game_of_thrones_deaths.csv')
 ```
 
 ```{r server-setup, context="server"}

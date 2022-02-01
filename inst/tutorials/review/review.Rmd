@@ -16,7 +16,7 @@ library(learnr)
 library(Hmisc)
 library(dplyr)
 knitr::opts_chunk$set(echo = FALSE)
-getHdata(acath)
+Hmisc::getHdata(acath)
 
 acath2 = acath %>% 
   select(-choleste, -sigdz) %>% 
