@@ -8,7 +8,7 @@ output:
     allow_skip: true
     css: css/tutorials.css
 runtime: shiny_prerendered
-description: "Model selection, goodness of fit and estiamtion problems in logistic models"
+description: "Model selection, goodness of fit and estimation problems in logistic models"
 ---
 
 ![](images/UNSW_2017_Big_Data_landscape.jpg){width="75%"}

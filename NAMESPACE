@@ -2,4 +2,3 @@
 
 export(.onAttach)
 export(index)
-export(run)
