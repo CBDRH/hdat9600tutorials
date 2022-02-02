@@ -1,0 +1,1668 @@
+<!DOCTYPE html>
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+
+<head>
+
+<meta charset="utf-8">
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+<meta name="generator" content="pandoc" />
+
+
+
+<meta name="progressive" content="false" />
+<meta name="allow-skip" content="true" />
+
+<title>HDAT9600 Introduction to Matrix Algebra</title>
+
+
+<!-- highlightjs -->
+<style type="text/css">code{white-space: pre;}</style>
+<style type="text/css">
+  pre:not([class]) {
+    background-color: white;
+  }
+</style>
+<script type="text/javascript">
+if (window.hljs) {
+  hljs.configure({languages: []});
+  hljs.initHighlightingOnLoad();
+  if (document.readyState && document.readyState === "complete") {
+    window.setTimeout(function() { hljs.initHighlighting(); }, 0);
+  }
+}
+</script>
+
+<!-- taken from https://github.com/rstudio/rmarkdown/blob/67b7f5fc779e4cfdfd0f021d3d7745b6b6e17149/inst/rmd/h/default.html#L296-L362 -->
+<!-- tabsets -->
+
+<style type="text/css">
+.tabset-dropdown > .nav-tabs {
+  display: inline-table;
+  max-height: 500px;
+  min-height: 44px;
+  overflow-y: auto;
+  background: white;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+}
+
+.tabset-dropdown > .nav-tabs > li.active:before {
+  content: "";
+  font-family: 'Glyphicons Halflings';
+  display: inline-block;
+  padding: 10px;
+  border-right: 1px solid #ddd;
+}
+
+.tabset-dropdown > .nav-tabs.nav-tabs-open > li.active:before {
+  content: "&#xe258;";
+  border: none;
+}
+
+.tabset-dropdown > .nav-tabs.nav-tabs-open:before {
+  content: "";
+  font-family: 'Glyphicons Halflings';
+  display: inline-block;
+  padding: 10px;
+  border-right: 1px solid #ddd;
+}
+
+.tabset-dropdown > .nav-tabs > li.active {
+  display: block;
+}
+
+.tabset-dropdown > .nav-tabs > li > a,
+.tabset-dropdown > .nav-tabs > li > a:focus,
+.tabset-dropdown > .nav-tabs > li > a:hover {
+  border: none;
+  display: inline-block;
+  border-radius: 4px;
+}
+
+.tabset-dropdown > .nav-tabs.nav-tabs-open > li {
+  display: block;
+  float: none;
+}
+
+.tabset-dropdown > .nav-tabs > li {
+  display: none;
+}
+</style>
+
+<script>
+$(document).ready(function () {
+  window.buildTabsets("section-TOC");
+});
+
+$(document).ready(function () {
+  $('.tabset-dropdown > .nav-tabs > li').click(function () {
+    $(this).parent().toggleClass('nav-tabs-open')
+  });
+});
+</script>
+<!-- end tabsets -->
+
+
+<link rel="stylesheet" href="css/tutorials.css" type="text/css" />
+
+</head>
+
+<body>
+
+
+
+<div class="pageContent band">
+<div class="bandContent page">
+
+<div class="topics">
+
+<p><img src="images/UNSW_2017_Big_Data_landscape.jpg" style="width:75.0%" /></p>
+<div id="section-introduction" class="section level2">
+<h2>Introduction</h2>
+<p>This basic introduction to <strong>matrix algebra</strong> (also often called <strong>linear algebra</strong>) is based heavily on notes by Associate Professor Adrian Dobra of the University of Washington, used with permission, adapted and enhanced with <span class="math inline">\(\textsf{R}\)</span> examples by Dr Tim Churches for the UNSW MSc Health Data Science HDAT9600 Statistical Modelling 1 course.</p>
+<p><span class="copyright">© Copyright 2021 University of Washington and UNSW Sydney. All rights reserved except where otherwise stated.</span></p>
+<div class="anxiety">
+<h3 id="section-dont-stress">Don't stress!</h3>
+<p>Although this tutorial appears to contain a lot of maths, it actually very easy, and it is basically just arithmetic with some rules used for matrices. You will not be examined or assessed on your understanding or mastery of this material in the HDAT9600 course. However, you are urged to work through this material, because you will gain a much better understanding of the material in later chapters of the course if you are at least familiar with matrix notation and nomenclature. As a data scientist, you will probably encounter matrix notation and operations a lot in scientific papers and technical documents – hence, a basic understanding of what it all means is essential. But it <strong>isn't</strong> hard, so don't stress!</p>
+</div>
+</div>
+<div id="section-matrices-and-vectors" class="section level2">
+<h2>Matrices and Vectors</h2>
+<p>A matrix is simply an arrangement of numbers in rectangular form. A (<em>j</em> × <em>k</em>) matrix <strong>A</strong> can be written thus:</p>
+<p><span class="math display">\[ 
+\mathbf{A}  = 
+ \begin{bmatrix}
+  a_{11} &amp; a_{12} &amp; \ldots &amp; a_{1k} \\
+  a_{21} &amp; a_{22} &amp; \ldots &amp; a_{2k} \\
+  \vdots  &amp; \vdots  &amp; \ddots &amp; \vdots  \\
+  a_{j1} &amp; a_{j2} &amp; \ldots &amp; a_{jk} 
+ \end{bmatrix}
+\]</span></p>
+<p>Notice that the convention is that a <strong>boldfaced</strong> capital letter is used to refer to the matrix as a whole, and the corresponding lowercase letter is used to refer to individual elements of the matrix. Individual elements are identified by double subscripts, with the row number first, followed by the column number. A handy reference to statistical notation conventions, including matrix and vector notations, can be found on <a href="https://en.wikipedia.org/wiki/Notation_in_probability_and_statistics">this wikipedia page</a>.</p>
+<p>Conveniently (and by design), this closely follows the <span class="math inline">\(\textsf{R}\)</span> syntax for defining and accessing matrices. Examine and then run the following code. You may also wish to revise the section on matrices and arrays in the <em>Introduction to R Programming</em> tutorial that is a prerequisite for this course.</p>
+<div class="tutorial-exercise" data-label="define-access-matrices" data-caption="Code" data-completion="1" data-diagnostics="1" data-startover="1" data-lines="0">
+<pre class="text"><code>B &lt;- matrix(c(2, 4, 3, 1, 5, 7), # the data elements 
+            nrow=2,              # number of rows 
+            ncol=3)              # number of columns 
+
+B
+class(B)
+
+# row 2, column 3
+B[2,3]</code></pre>
+<script type="application/json" data-opts-chunk="1">{"fig.width":6.5,"fig.height":4,"fig.retina":2,"fig.align":"default","fig.keep":"high","fig.show":"asis","out.width":624,"warning":true,"error":false,"message":true,"exercise.df_print":"paged","exercise.checker":"NULL"}</script>
+</div>
+<p>Recall that the <code>matrix()</code> function in <span class="math inline">\(\textsf{R}\)</span> constructs matrices from vectors column-wise by default, as in the example above. You can use the <code>byrows=</code> argument to construct matrices row-wise. Compare the result of this code:</p>
+<div class="tutorial-exercise" data-label="define-access-matrices-byrows" data-caption="Code" data-completion="1" data-diagnostics="1" data-startover="1" data-lines="0">
+<pre class="text"><code>C &lt;- matrix(c(2, 4, 3, 1, 5, 7), # the data elements 
+            nrow=2,              # number of rows 
+            ncol=3,              # number of columns
+            byrow = TRUE)        # construct matrix by rows
+
+C</code></pre>
+<script type="application/json" data-opts-chunk="1">{"fig.width":6.5,"fig.height":4,"fig.retina":2,"fig.align":"default","fig.keep":"high","fig.show":"asis","out.width":624,"warning":true,"error":false,"message":true,"exercise.df_print":"paged","exercise.checker":"NULL"}</script>
+</div>
+<div id="section-the-order-of-a-matrix" class="section level3">
+<h3>The order of a matrix</h3>
+<p>The dimensionality of a matrix is also known as the <em>order</em> of a matrix. Thus, in general terms, the order of matrix A above is (<em>j</em>,<em>k</em>). The <code>dim()</code> function is used in <span class="math inline">\(\textsf{R}\)</span> to determine, or set, the dimensions (order) of a matrix:</p>
+<div class="tutorial-exercise-support" data-label="def-matrix-b" data-caption="Code" data-completion="1" data-diagnostics="1" data-startover="1" data-lines="0">
+<pre class="text"><code>B &lt;- matrix(c(2, 4, 3, 1, 5, 7), # the data elements 
+            nrow=2,              # number of rows 
+            ncol=3)              # number of columns 
+C &lt;- matrix(c(2, 4, 3, 1, 5, 7), # the data elements 
+            nrow=2,              # number of rows 
+            ncol=3,              # number of columns
+            byrow = TRUE)        # construct matrix by rows</code></pre>
+</div>
+<div class="tutorial-exercise" data-label="get-dim-of-a-matrix" data-caption="Code" data-completion="1" data-diagnostics="1" data-startover="1" data-lines="0">
+<pre class="text"><code>dim(B)</code></pre>
+<script type="application/json" data-opts-chunk="1">{"fig.width":6.5,"fig.height":4,"fig.retina":2,"fig.align":"default","fig.keep":"high","fig.show":"asis","out.width":624,"warning":true,"error":false,"message":true,"exercise.df_print":"paged","exercise.setup":"def-matrix-b","exercise.checker":"NULL"}</script>
+</div>
+<p>A <em>square matrix</em> is a matrix of order (<em>j</em>,<em>k</em>) where <em>j</em> = <em>k</em>, that is the matrix has the same number of rows as columns.</p>
+<div class="figure">
+<img src="images/square_matrix.jpg" style="width:75.0%" alt="" />
+<p class="caption">A square matrix of brussel sprouts of order (5, 5)</p>
+</div>
+</div>
+<div id="section-vectors" class="section level3">
+<h3>Vectors</h3>
+<p>There is also a special case of a matrix called a <em>vector</em>. Vectors are matrices which have either one row or one column. Row vectors have a single row and multiple columns, thus an order (1, <em>k</em>) row vector looks like this:</p>
+<p><span class="math display">\[ 
+\mathbf{\alpha}  = 
+ \begin{bmatrix}
+  \alpha_1 &amp; \alpha_2 &amp; \alpha_3 &amp; \ldots &amp; a_k 
+ \end{bmatrix}
+\]</span></p>
+<p>An order (<em>j</em>,1) column vector looks like this:</p>
+<p><span class="math display">\[ 
+\mathbf{y}  = 
+ \begin{bmatrix}
+  y_1 \\
+  y_2 \\
+  y_3 \\
+  \vdots \\
+  y_j 
+ \end{bmatrix}
+\]</span></p>
+<p>The naming convention for vectors is similar to that for matrices, except that the letters used to name them are all boldfaced lower-case.</p>
+<p>We are already familiar with vectors in <span class="math inline">\(\textsf{R}\)</span>. Note that in mathematical matrix notation, a vector is considered a special case of a matrix, whereas in <span class="math inline">\(\textsf{R}\)</span>, a matrix is a special case of a vector – it is a vector with two dimensions imposed on it.</p>
+<p>A scalar in matrix notation is a single value – that is, an order (1,1) matrix. In <span class="math inline">\(\textsf{R}\)</span>, a scalar is just a vector of length 1, or a matrix with dimensions (1,1).</p>
+<p><div class="panel-heading tutorial-quiz-title">Quiz 1</div></p>
+<div class="panel panel-default">
+<div data-label="quiz-1-1" class="tutorial-question panel-body">
+<div id="quiz-1-1-answer_container" class="shiny-html-output"></div>
+<div id="quiz-1-1-message_container" class="shiny-html-output"></div>
+<div id="quiz-1-1-action_button_container" class="shiny-html-output"></div>
+<script>if (Tutorial.triggerMathJax) Tutorial.triggerMathJax()</script>
+</div>
+</div>
+<div class="panel panel-default">
+<div data-label="quiz-1-2" class="tutorial-question panel-body">
+<div id="quiz-1-2-answer_container" class="shiny-html-output"></div>
+<div id="quiz-1-2-message_container" class="shiny-html-output"></div>
+<div id="quiz-1-2-action_button_container" class="shiny-html-output"></div>
+<script>if (Tutorial.triggerMathJax) Tutorial.triggerMathJax()</script>
+</div>
+</div>
+</div>
+</div>
+<div id="section-matrix-addition-and-subtraction" class="section level2">
+<h2>Matrix addition and subtraction</h2>
+<p>Now that we have defined matrices, vectors, and scalars, we can consider the arithmetic operations we can perform on them. For addition and subtraction, matrix arithmetic is a just straightforward extension of scalar arithmetic. Scalar addition is simple:</p>
+<p><span class="math display">\[
+\begin{align}
+m = 2 \\
+n = 5 \\
+m + n = 7
+\end{align}
+\]</span></p>
+<p>Addition is similarly defined for matrices. If matrices or vectors are of the same order, then they can be added, element-wise. Thus, for a pair of order (2,2) matrices <em>A</em> and <em>B</em>, <span class="math inline">\(\mathbf{A} + \mathbf{B} = \mathbf{C}\)</span> is:</p>
+<p><span class="math display">\[
+ \begin{bmatrix}
+  a_{11} &amp; a_{12} \\
+  a_{21} &amp; a_{22} \\
+ \end{bmatrix} +
+ \begin{bmatrix}
+  b_{11} &amp; b_{12} \\
+  b_{21} &amp; b_{22} \\
+ \end{bmatrix} =
+ \begin{bmatrix}
+  (a_{11} + b_{11}) &amp; (a_{12} + b_{12}) \\
+  (a_{21} + b_{21}) &amp; (a_{22} + b_{22}) \\
+ \end{bmatrix} =
+ \begin{bmatrix}
+  c_{11} &amp; c_{12} \\
+  c_{21} &amp; c_{22} \\
+ \end{bmatrix} 
+\]</span></p>
+<p>Subtraction similarly follows, thus for a pair of order (2,2) matrices, <span class="math inline">\(\mathbf{A} - \mathbf{B} = \mathbf{C}\)</span> is:</p>
+<p><span class="math display">\[
+ \begin{bmatrix}
+  a_{11} &amp; a_{12} \\
+  a_{21} &amp; a_{22} \\
+ \end{bmatrix} -
+ \begin{bmatrix}
+  b_{11} &amp; b_{12} \\
+  b_{21} &amp; b_{22} \\
+ \end{bmatrix} =
+ \begin{bmatrix}
+  (a_{11} - b_{11}) &amp; (a_{12} - b_{12}) \\
+  (a_{21} - b_{21}) &amp; (a_{22} - b_{22}) \\
+ \end{bmatrix} =
+ \begin{bmatrix}
+  c_{11} &amp; c_{12} \\
+  c_{21} &amp; c_{22} \\
+ \end{bmatrix} 
+\]</span></p>
+<p>It is important to keep in mind that matrix addition and subtraction is only defined in the matrices are the same order, or, in other words, share the same dimensionality. If they do, they are said to be <em>conformable for addition</em>. If not, they are <em>nonconformable</em>.</p>
+<p>Here is a concrete example:</p>
+<p><span class="math display">\[
+ \begin{bmatrix}
+  1 &amp; \phantom{-}4 &amp; -2 \\
+  5 &amp; -3 &amp; \phantom{-}3 \\
+ \end{bmatrix} -
+ \begin{bmatrix}
+  -3 &amp; 2 &amp; \phantom{-}8  \\
+   \phantom{-}2 &amp; 2 &amp; -3  \\
+ \end{bmatrix} =
+ \begin{bmatrix}
+  4 &amp; \phantom{-}2 &amp; -10 \\
+  3 &amp; -5 &amp; \phantom{-}6  \\
+ \end{bmatrix} 
+\]</span></p>
+<p>Not surprisingly, <span class="math inline">\(\textsf{R}\)</span> makes it easy to perform matrix addition and subtraction:</p>
+<div class="tutorial-exercise" data-label="matrix-addition-1" data-caption="Code" data-completion="1" data-diagnostics="1" data-startover="1" data-lines="0">
+<pre class="text"><code>A &lt;- matrix(c(1, 5, 4, -3, -2, 3), nrow=2, ncol=3) 
+
+B &lt;- matrix(c(-3, 2, 2, 2, 8, -3), nrow=2, ncol=3)
+
+A - B</code></pre>
+<script type="application/json" data-opts-chunk="1">{"fig.width":6.5,"fig.height":4,"fig.retina":2,"fig.align":"default","fig.keep":"high","fig.show":"asis","out.width":624,"warning":true,"error":false,"message":true,"exercise.df_print":"paged","exercise.checker":"NULL"}</script>
+</div>
+<p>Note also that for matrices, just like for scalars:</p>
+<ul>
+<li><span class="math inline">\(\mathbf{A} + \mathbf{B} = \mathbf{B} + \mathbf{A}\)</span> i.e. matrix addition is commutative.</li>
+<li><span class="math inline">\((\mathbf{A} + \mathbf{B}) + \mathbf{C} = \mathbf{A} + (\mathbf{B} + \mathbf{C})\)</span> i.e. matrix addition is associative.</li>
+</ul>
+<div id="section-activity" class="section level3">
+<h3>Activity</h3>
+<p>Write some <span class="math inline">\(\textsf{R}\)</span> code to create the two matrices, <span class="math inline">\(\mathbf{A}\)</span> and <span class="math inline">\(\mathbf{B}\)</span> shown below, and calculate <span class="math inline">\(\mathbf{A} + \mathbf{B}\)</span> and <span class="math inline">\(\mathbf{A} - \mathbf{B}\)</span>.</p>
+<span class="math display">\[
+\mathbf{A} = 
+ \begin{bmatrix}
+  3 &amp; \phantom{-}5 &amp; -1 \\
+  4 &amp; -2 &amp; \phantom{-}4 \\
+ \end{bmatrix} \qquad
+\mathbf{B} = 
+ \begin{bmatrix}
+  -6 &amp; 5 &amp; \phantom{-}7  \\
+   \phantom{-}9 &amp; 1 &amp; -4  \\
+ \end{bmatrix}
+\]</span>
+<div class="tutorial-exercise" data-label="matrix-addition-activity" data-caption="Code" data-completion="1" data-diagnostics="1" data-startover="1" data-lines="0">
+<script type="application/json" data-opts-chunk="1">{"fig.width":6.5,"fig.height":4,"fig.retina":2,"fig.align":"default","fig.keep":"high","fig.show":"asis","out.width":624,"warning":true,"error":false,"message":true,"exercise.df_print":"paged","exercise.checker":"NULL"}</script>
+</div>
+</div>
+</div>
+<div id="section-matrix-transposition" class="section level2">
+<h2>Matrix transposition</h2>
+<p>Another common matrix operation is <em>transposition</em>. In this operation, the order subscripts are exchanged for each element of the matrix. Thus, an order (<em>j</em>,<em>k</em>) matrix becomes an order (<em>k</em>,<em>j</em>) matrix. Transposition is denoted by placing a superscript T after the matrix identifier, thus: <span class="math inline">\(\mathbf{A}^T\)</span> (or a prime mark, thus: <span class="math inline">\(\mathbf{A}^\prime\)</span>). Here is an example of a transpose:</p>
+<p><span class="math display">\[
+ \mathbf{Q} = 
+ \begin{bmatrix}
+  q_{1,1} &amp; q_{1,2} \\
+  q_{2,1} &amp; q_{2,2} \\
+  q_{3,1} &amp; q_{3,2} \\
+ \end{bmatrix} \qquad
+\mathbf{Q^T} =  
+\mathbf{Q^\prime} =  
+ \begin{bmatrix}
+  q_{1,1} &amp; q_{2,1} &amp; q_{3,1} \\
+  q_{1,2} &amp; q_{2,2} &amp; q_{3,2} \\
+ \end{bmatrix}
+\]</span></p>
+<p>Note that in this example above, the subscripts in the transpose have been kept the same to make it clearer how the values in the cells have been exchanged. Matrix subscripts don't usually contain commas — we have included them here to make it clear that the same subscript labelling has been used in both matrices, <span class="math inline">\(\mathbf{Q}\)</span> and <span class="math inline">\(mathbf{Q^T}\)</span>.</p>
+<p>A concrete example also makes this easier to appreciate – here is an example for a row vector:</p>
+<p><span class="math display">\[
+\omega = 
+ \begin{bmatrix}
+  1 &amp; 3 &amp; 2 &amp; -5
+ \end{bmatrix} \qquad
+\omega^T =  
+\omega^\prime =  
+ \begin{bmatrix}
+ \begin{align*}
+  1 \\
+  3 \\
+  2 \\
+  -5
+ \end{align*}  
+ \end{bmatrix}
+\]</span></p>
+<p>We will use the superscripted T this this <span class="math inline">\(\mathbf{A}^T\)</span> to denote transposition henceforth in these notes, because it is clearer, but you will see the prime mark <span class="math inline">\(\mathbf{A}^\prime\)</span> used a great deal elsewhere.</p>
+<p>Note that transposing a row vector turns it into a column vector, and <em>vice versa</em>.</p>
+<p>There are a couple of results regarding transposition that are important to remember:</p>
+<ul>
+<li>an order (<em>j</em>,<em>j</em>) matrix <span class="math inline">\(\mathbf{A}\)</span> is said to be <strong>symmetric</strong> if <span class="math inline">\(\mathbf{A} = \mathbf{A}^T\)</span>. This implies, of course, that all symmetric matrices are square. Here is an example:</li>
+</ul>
+<p><span class="math display">\[
+\mathbf{W} = 
+ \begin{bmatrix}
+  \phantom{-}1   &amp; 0.2 &amp; -0.5 \\
+  \phantom{-}0.2 &amp; 1   &amp; \phantom{-}0.4 \\
+  -0.5           &amp; 0.4 &amp; \phantom{-}1
+ \end{bmatrix} \qquad
+\mathbf{W}^T =  
+ \begin{bmatrix}
+  \phantom{-}1   &amp; 0.2 &amp; -0.5 \\
+  \phantom{-}0.2 &amp; 1 &amp; \phantom{-}0.4 \\
+  -0.5           &amp; 0.4 &amp; \phantom{-}1
+ \end{bmatrix}
+\]</span></p>
+<ul>
+<li><span class="math inline">\((\mathbf{A}^T)^T = \mathbf{A}\)</span>. In other words, the transpose of the transpose is the original matrix.</li>
+<li>for a scalar <em>k</em>, <span class="math inline">\((k\mathbf{A})^T = k\mathbf{A}^T\)</span></li>
+<li>for two matrices of the same order, the transpose of the sum is equal to the sum of the transposes. More formally: <span class="math inline">\((\mathbf{A} + \mathbf{B})^T = \mathbf{A}^T + \mathbf{B}^T\)</span>, that is, transposition is also commutative.</li>
+</ul>
+<p>In <span class="math inline">\(\textsf{R}\)</span>, transposition is performed using the <code>t()</code> function. Using the row vector matrix, above:</p>
+<div class="tutorial-exercise" data-label="transpose-matrices-a" data-caption="Code" data-completion="1" data-diagnostics="1" data-startover="1" data-lines="0">
+<pre class="text"><code>omega &lt;- matrix(c(1, 3, 2, -5), nrow=1) 
+
+omega
+
+t(omega)</code></pre>
+<script type="application/json" data-opts-chunk="1">{"fig.width":6.5,"fig.height":4,"fig.retina":2,"fig.align":"default","fig.keep":"high","fig.show":"asis","out.width":624,"warning":true,"error":false,"message":true,"exercise.df_print":"paged","exercise.checker":"NULL"}</script>
+</div>
+<p>Empirically demonstrating that for two matrices of the same order, the transpose of the sum is equal to the sum of the transposes:</p>
+<div class="tutorial-exercise" data-label="transpose-matrices-b" data-caption="Code" data-completion="1" data-diagnostics="1" data-startover="1" data-lines="0">
+<pre class="text"><code>A &lt;- matrix(c(1, 5, 4, -3, -2, 3), nrow=2, ncol=3) 
+B &lt;- matrix(c(-3, 2, 2, 2, 8, -3), nrow=2, ncol=3)
+
+A
+B
+
+t(A + B)
+
+t(A) + t(B)</code></pre>
+<script type="application/json" data-opts-chunk="1">{"fig.width":6.5,"fig.height":4,"fig.retina":2,"fig.align":"default","fig.keep":"high","fig.show":"asis","out.width":624,"warning":true,"error":false,"message":true,"exercise.df_print":"paged","exercise.checker":"NULL"}</script>
+</div>
+<div id="section-quiz" class="section level3">
+<h3>Quiz</h3>
+<div class="panel panel-default">
+<div data-label="question-2" class="tutorial-question panel-body">
+<div id="question-2-answer_container" class="shiny-html-output"></div>
+<div id="question-2-message_container" class="shiny-html-output"></div>
+<div id="question-2-action_button_container" class="shiny-html-output"></div>
+<script>if (Tutorial.triggerMathJax) Tutorial.triggerMathJax()</script>
+</div>
+</div>
+</div>
+<div id="section-activity-1" class="section level3">
+<h3>Activity</h3>
+<p>Write some <span class="math inline">\(\textsf{R}\)</span> code to create the two matrices, <span class="math inline">\(\mathbf{A}\)</span> and <span class="math inline">\(\mathbf{B}\)</span> shown below, and print out <span class="math inline">\(\mathbf{A^T}\)</span> and <span class="math inline">\(\mathbf{B^T}\)</span>.</p>
+<span class="math display">\[
+\mathbf{A} = 
+ \begin{bmatrix}
+  9 &amp; \phantom{-}5 &amp; -1 \\
+  4 &amp; -7 &amp; \phantom{-}2 \\
+ \end{bmatrix} \qquad
+\mathbf{B} = 
+ \begin{bmatrix}
+  -16 &amp; 2 &amp; \phantom{-}12  \\
+   \phantom{-}8 &amp; 3 &amp; -5  \\
+ \end{bmatrix}
+\]</span>
+<div class="tutorial-exercise" data-label="matrix-transpose-activity" data-caption="Code" data-completion="1" data-diagnostics="1" data-startover="1" data-lines="0">
+<script type="application/json" data-opts-chunk="1">{"fig.width":6.5,"fig.height":4,"fig.retina":2,"fig.align":"default","fig.keep":"high","fig.show":"asis","out.width":624,"warning":true,"error":false,"message":true,"exercise.df_print":"paged","exercise.checker":"NULL"}</script>
+</div>
+</div>
+</div>
+<div id="section-matrix-multiplication" class="section level2">
+<h2>Matrix multiplication</h2>
+<p>So far we have examined matrix addition and subtraction, as well as matrix transposition. Now we turn our attention to multiplication. The first and simplest type of multiplication is a scalar times a matrix. In words, a scalar <span class="math inline">\(\alpha\)</span> times a matrix <strong>A</strong> equals the scalar times each element of <strong>A</strong>.</p>
+<p><span class="math display">\[
+\mathbf{A} = 
+ \begin{bmatrix}
+  a_{1,1} &amp; a_{1,2} \\
+  a_{2,1} &amp; a_{2,2} \\
+ \end{bmatrix} \qquad
+\alpha\mathbf{A} =  
+ \begin{bmatrix}
+  \alpha a_{1,1} &amp; \alpha a_{1,1} \\
+  \alpha a_{2,1} &amp; \alpha a_{2,1} \\
+ \end{bmatrix}
+\]</span></p>
+<p>Or a concrete example:</p>
+<p><span class="math display">\[
+\alpha = \frac{1}{2} \qquad
+\mathbf{A} = 
+ \begin{bmatrix}
+  4 &amp; 8 &amp; 2 \\
+  6 &amp; 8 &amp; 10 \\
+ \end{bmatrix} \qquad
+\alpha\mathbf{A} =  
+ \begin{bmatrix}
+  2 &amp; 4 &amp; 1 \\
+  3 &amp; 4 &amp; 5 \\
+ \end{bmatrix}
+\]</span></p>
+<p>And in <span class="math inline">\(\textsf{R}\)</span>:</p>
+<div class="tutorial-exercise" data-label="scalar-multiply-matrices-a" data-caption="Code" data-completion="1" data-diagnostics="1" data-startover="1" data-lines="0">
+<pre class="text"><code>A &lt;- matrix(c(4, 6, 8, 8, 2, 10), nrow=2, ncol=3) 
+A
+alpha &lt;- 0.5
+alpha * A</code></pre>
+<script type="application/json" data-opts-chunk="1">{"fig.width":6.5,"fig.height":4,"fig.retina":2,"fig.align":"default","fig.keep":"high","fig.show":"asis","out.width":624,"warning":true,"error":false,"message":true,"exercise.df_print":"paged","exercise.checker":"NULL"}</script>
+</div>
+<p>Now let's consider the process of multiplying two matrices. Matrix multiplication by another matrix is defined as follows: given matrix <strong>A</strong> of order (<em>m</em>,<em>n</em>) and matrix <strong>B</strong> of order (<em>n</em>,<em>r</em>), then the product <strong>AB</strong> = <strong>C</strong> is the order (<em>m</em>, <em>r</em>) matrix whose entries are defined by:</p>
+<p><span class="math display">\[
+c_{i,j} = \sum_{k=1}^{n} a_{i,k} b_{k,j}
+\]</span> where <span class="math inline">\(i=1,...,m\)</span> and <span class="math inline">\(j=1,...,r\)</span>.</p>
+<p>In other words, matrix multiplication is the sum of (each row of <strong>A</strong> is multiplied by each column of <strong>B</strong>).</p>
+<p>Note that for matrices to be <em>multiplication conformable</em>, the number of columns in the first matrix <em>n</em> must equal the number of rows in the second matrix <em>n</em>.</p>
+<p>It is easier to see this by looking at a few concrete examples. Let</p>
+<p><span class="math display">\[
+\mathbf{A} = 
+ \begin{bmatrix}
+  -2           &amp; 1 &amp; 3 \\
+  \phantom{-}4 &amp; 1 &amp; 6 \\
+ \end{bmatrix} \qquad
+\mathbf{B} =  
+ \begin{bmatrix}
+  3 &amp; -2 \\
+  2 &amp; \phantom{-}4 \\
+  1 &amp; -3 \\
+ \end{bmatrix}
+\]</span></p>
+<p>We can now define their product. We say that <strong>B</strong> is <em>pre-multiplied</em> by <strong>A</strong>, or that <strong>A</strong> is <em>post-multiplied</em> by <strong>B</strong>:</p>
+<p><span class="math display">\[
+\begin{equation}
+\begin{split}
+\mathbf{AB} &amp; =  \begin{bmatrix}
+((-2 \times 3) + (1 \times 2) + (3 \times 1)) &amp; ((-2 \times -2) + (1 \times 4) + (3 \times -3)) \\
+((4 \times 3) + (1 \times 2) + (6 \times 1)) &amp; ((4 \times -2) + (1 \times 4) + (6 \times -3)) \\
+\end{bmatrix} \\
+ &amp; = \begin{bmatrix}
+-1            &amp; -1 \\
+\phantom{-}20 &amp; -22 \\
+\end{bmatrix} \\
+\end{split}
+\end{equation}
+\]</span></p>
+<p>Note that <strong>A</strong> is of order (2,3), and <strong>B</strong> is of order (3,2). Thus, the product <strong>AB</strong> is of order (2,2).</p>
+<p>The product <strong>BA</strong> will therefore be:</p>
+<p><span class="math display">\[
+\begin{equation}
+\begin{split}
+\mathbf{BA} &amp; =  \begin{bmatrix}
+((3 \times -2) + (-2 \times 4)) &amp;  ((3 \times 1)  + (-2 \times 1)) &amp;  ((3 \times 3) + (-2 \times 6)) \\
+((2 \times -2) + (4 \times 4)) &amp;  ((2 \times 1)  + (4 \times 1)) &amp;  ((2 \times 3) + (4 \times 6)) \\
+((1 \times -2) + (-3 \times 4)) &amp;  ((1 \times 1)  + (-3 \times 1)) &amp;  ((1 \times 3) + (-3 \times 6)) \\
+\end{bmatrix} \\
+ &amp; = \begin{bmatrix}
+-14           &amp; \phantom{-}1 &amp; -3 \\
+\phantom{-}12 &amp; \phantom{-}6 &amp; \phantom{-}30 \\
+-14           &amp; -2           &amp; -15 \\
+\end{bmatrix} \\
+\end{split}
+\end{equation}
+\]</span></p>
+<p>Matrix multiplication in <span class="math inline">\(\textsf{R}\)</span> is performed using the <code>%*%</code> operator. Thus we can easily verify the results shown above using <span class="math inline">\(\textsf{R}\)</span>:</p>
+<div class="tutorial-exercise" data-label="multiply-matrices-a" data-caption="Code" data-completion="1" data-diagnostics="1" data-startover="1" data-lines="0">
+<pre class="text"><code>A &lt;- matrix(c(-2, 4, 1, 1, 3, 6), nrow=2, ncol=3) 
+B &lt;- matrix(c(3, 2, 1, -2, 4, -3), nrow=3, ncol=2)
+
+A
+B
+
+A %*% B
+
+B %*% A</code></pre>
+<script type="application/json" data-opts-chunk="1">{"fig.width":6.5,"fig.height":4,"fig.retina":2,"fig.align":"default","fig.keep":"high","fig.show":"asis","out.width":624,"warning":true,"error":false,"message":true,"exercise.df_print":"paged","exercise.checker":"NULL"}</script>
+</div>
+<p>The fact that <span class="math inline">\(AB \ne BA\)</span> shows that the multiplication of matrices is not commutative.</p>
+<p>Note that the <code>*</code> operator does elementwise multiplication on matrices, and that is <strong>not</strong> the same as (inner) matrix multiplication! Examine the following:</p>
+<pre class="r"><code>D &lt;- matrix(c(1, 4, -7, -2, 4, 1, 1, 3, 6), nrow=3, ncol=3) 
+E &lt;- matrix(c(-3, -6, -1, 3, 2, 1, -2, 4, -3), nrow=3, ncol=3)
+
+D</code></pre>
+<pre><code>##      [,1] [,2] [,3]
+## [1,]    1   -2    1
+## [2,]    4    4    3
+## [3,]   -7    1    6</code></pre>
+<pre class="r"><code>E</code></pre>
+<pre><code>##      [,1] [,2] [,3]
+## [1,]   -3    3   -2
+## [2,]   -6    2    4
+## [3,]   -1    1   -3</code></pre>
+<pre class="r"><code># (inner) matrix multiplication
+D %*% E</code></pre>
+<pre><code>##      [,1] [,2] [,3]
+## [1,]    8    0  -13
+## [2,]  -39   23   -1
+## [3,]    9  -13    0</code></pre>
+<pre class="r"><code># elementwise non-matrix multiplication
+D * E</code></pre>
+<pre><code>##      [,1] [,2] [,3]
+## [1,]   -3   -6   -2
+## [2,]  -24    8   12
+## [3,]    7    1  -18</code></pre>
+<p>Here are a few other useful identities:</p>
+<ul>
+<li>We've already seen that matrix multiplication is not commutative. In other words: <span class="math display">\[ \mathbf{AB} \ne \mathbf{BA} \]</span></li>
+<li>Matrix multiplication is associative. In other words: <span class="math display">\[ (\mathbf{AB})\mathbf{C} = \mathbf{A}(\mathbf{BC}) \]</span></li>
+<li>Matrix multiplication is distributive. In other words: <span class="math display">\[ \mathbf{A}(\mathbf{B} + \mathbf{C}) = \mathbf{AB} + \mathbf{AC} \]</span></li>
+<li>Scalar multiplication is commutative, associative, and distributive.</li>
+<li>The transpose of a matrix product takes the form : <span class="math display">\[ (\mathbf{AB})^T = \mathbf{B}^T \mathbf{A}^T \]</span></li>
+</ul>
+<p>Let's verify some of those identities empirically using <span class="math inline">\(\textsf{R}\)</span>:</p>
+<div class="tutorial-exercise" data-label="multiply-matrices-identities-a" data-caption="Code" data-completion="1" data-diagnostics="1" data-startover="1" data-lines="25">
+<pre class="text"><code>D &lt;- matrix(c(1, 4, -7, -2, 4, 1, 1, 3, 6), nrow=3, ncol=3) 
+E &lt;- matrix(c(-3, -6, -1, 3, 2, 1, -2, 4, -3), nrow=3, ncol=3)
+F &lt;- matrix(c(-2, 3, 9, 5, -2, 3, 7, -2, -6), nrow=3, ncol=3) 
+
+D
+E
+F
+
+# Is matrix multiplication associative?
+identical(
+          (D %*% E) %*% F,
+           D %*% (E %*% F)
+         )
+
+# Is matrix multiplication distributive?
+identical(
+          D %*% (E + F),
+          (D %*% E) + (D %*% F)
+         )
+
+# transpose of a matrix product equals the product of the transposed matrices in opposite order?
+identical(
+          t(D %*% E),
+          t(E) %*% t(D)
+          )</code></pre>
+<script type="application/json" data-opts-chunk="1">{"fig.width":6.5,"fig.height":4,"fig.retina":2,"fig.align":"default","fig.keep":"high","fig.show":"asis","out.width":624,"warning":true,"error":false,"message":true,"exercise.df_print":"paged","exercise.checker":"NULL"}</script>
+</div>
+<p>Just as with scalar algebra, we use the exponentiation operator to denote repeated multiplication. For a square matrix, we use the following notation to denote exponentiation:</p>
+<p><span class="math display">\[ \mathbf{A}^4 = \mathbf{A} \cdot \mathbf{A} \cdot \mathbf{A} \cdot \mathbf{A} \]</span></p>
+<p>Why can only square matrices be exponentiated? Because a square matrix is the only type of matrix which is conformable with itself!</p>
+<div id="section-quiz-1" class="section level3">
+<h3>Quiz</h3>
+<div class="panel panel-default">
+<div data-label="question-3" class="tutorial-question panel-body">
+<div id="question-3-answer_container" class="shiny-html-output"></div>
+<div id="question-3-message_container" class="shiny-html-output"></div>
+<div id="question-3-action_button_container" class="shiny-html-output"></div>
+<script>if (Tutorial.triggerMathJax) Tutorial.triggerMathJax()</script>
+</div>
+</div>
+</div>
+</div>
+<div id="section-vectors-and-multiplication" class="section level2">
+<h2>Vectors and multiplication</h2>
+<p>We use the same formula for vector multiplication as we do for matrix multiplication, because as we have seen, vectors can be seen as a matrix with just one ow or one column. Let's look at a few examples. Let us define the column vector <em>e</em>. By definition, the order of <em>e</em> is (<em>N</em>, 1), where <em>N</em> is the number of values in <em>e</em>. We can take the <em>inner product</em> of <em>e</em>, which is simply:</p>
+<p><span class="math display">\[ e^T e = 
+\begin{bmatrix}
+e_1 &amp; e_2 &amp; \ldots &amp; e_N \\
+\end{bmatrix} 
+\begin{bmatrix}
+e_1 \\
+e_2 \\
+\vdots \\ 
+e_N \\
+\end{bmatrix} 
+\]</span></p>
+<p>This can be simplified as:</p>
+<p><span class="math display">\[ 
+\begin{align}
+\begin{split}
+e^Te &amp; = e_1 e_1 + e_2 e_2 + \ldots + e_N e_N \\
+ &amp; = \sum_{i=1}^{N}e_i^2
+\end{split}
+\end{align}
+\]</span></p>
+<p>Why is this important? The inner product of a column vector with itself is equal to the sum of the square values of the vector. This is used a lot in regression models!</p>
+<p>Let's verify that in <span class="math inline">\(\textsf{R}\)</span>:</p>
+<div class="tutorial-exercise" data-label="multiply-column-vectors" data-caption="Code" data-completion="1" data-diagnostics="1" data-startover="1" data-lines="12">
+<pre class="text"><code>g_vector &lt;- c(-2, 3, 9, 5, -2, 3, 7, -2, -6)
+g &lt;- matrix(g_vector, ncol=1)
+
+# column vector
+g
+
+# transpose of column vector matrix multiplied by itself
+t(g) %*% g
+
+# sum of squares of the values in the column vector
+sum(g_vector^2)</code></pre>
+<script type="application/json" data-opts-chunk="1">{"fig.width":6.5,"fig.height":4,"fig.retina":2,"fig.align":"default","fig.keep":"high","fig.show":"asis","out.width":624,"warning":true,"error":false,"message":true,"exercise.df_print":"paged","exercise.checker":"NULL"}</script>
+</div>
+</div>
+<div id="section-some-special-matrices" class="section level2">
+<h2>Some special matrices</h2>
+<p>When performing scalar algebra, we know that <span class="math inline">\(x \times 1 = x\)</span>, which is known as the <em>identity</em> relationship. There is a similar relationship in matrix algebra: <span class="math inline">\(\mathbf{AI} = \mathbf{A}\)</span>. But what is <span class="math inline">\(\mathbf{I}\)</span>? It can be shown that <span class="math inline">\(\mathbf{I}\)</span> is a diagonal, square matrix with ones on the main diagonal, and zeros on the off diagonal. For example, the order three identity matrix is:</p>
+<p><span class="math display">\[
+\mathbf{I}_3 = 
+\begin{bmatrix}
+1 &amp; 0 &amp; 0 \\
+0 &amp; 1 &amp; 0 \\
+0 &amp; 0 &amp; 1 \\
+\end{bmatrix}
+\]</span></p>
+<p>Notice the use of a subscript to indicate the order of the identity matrix <span class="math inline">\(\mathbf{I}\)</span>.</p>
+<p>Here is an example of matrix multiplication by an identity matrix (this makes it obvious why it is called an identity matrix):</p>
+<p><span class="math display">\[
+\begin{bmatrix}
+1 &amp; 2  \\
+3 &amp; 4  \\
+\end{bmatrix} 
+\begin{bmatrix}
+1 &amp; 0  \\
+0 &amp; 1  \\
+\end{bmatrix} =
+\begin{bmatrix}
+1 &amp; 2  \\
+3 &amp; 4  \\
+\end{bmatrix} 
+\]</span></p>
+<p>The identity matrix (any identity matrix, of any order) is commutative, associative, and distributive with respect to multiplication. That is:</p>
+<p><span class="math display">\[ \mathbf{AIB} = \mathbf{IAB} = \mathbf{ABI} = \mathbf{AB} \]</span></p>
+<p>In scalar algebra, another key identity is <span class="math inline">\(x + 0 = x\)</span>. In matrix algebra, the equivalent of a scalar zero is a matrix of all zeroes, denoted <span class="math inline">\(0_{j,k}\)</span>. Here is an example:</p>
+<p><span class="math display">\[
+\mathbf{A} = 
+\begin{bmatrix}
+1 &amp; 2  \\
+3 &amp; 4  \\
+\end{bmatrix} \\
+\mathbf{A} + 0_{2,2} = 
+\begin{bmatrix}
+1 &amp; 2  \\
+3 &amp; 4  \\
+\end{bmatrix} +
+\begin{bmatrix}
+0 &amp; 0  \\
+0 &amp; 0  \\
+\end{bmatrix} =
+\begin{bmatrix}
+1 &amp; 2  \\
+3 &amp; 4  \\
+\end{bmatrix} =
+\mathbf{A}
+\]</span></p>
+<p>There are three other matrices worth mentioning. The first is a <em>diagonal</em> matrix, which takes specific values on the main diagonal, and zeros on the off-diagonal. Formally, matrix <span class="math inline">\(\mathbf{A}\)</span> is diagonal if <span class="math inline">\(a_{i,j} = 0 \quad \forall \, i \ne j\)</span>. (<span class="math inline">\(\forall\)</span> means <em>for all</em> or <em>for any</em> or <em>for each</em>.)</p>
+<p>The identity matrix is an example of a diagonal matrix, and so is the following matrix <span class="math inline">\(\mathbf{\Omega}\)</span>:</p>
+<p><span class="math display">\[
+\mathbf{\Omega} = 
+\begin{bmatrix}
+2.5667 &amp; 0 &amp; 0  \\
+0 &amp; 3.4126 &amp; 0  \\
+0 &amp; 0 &amp; 7.4329 \\
+\end{bmatrix} 
+\]</span></p>
+<div id="section-quiz-2" class="section level3">
+<h3>Quiz</h3>
+<div class="panel panel-default">
+<div data-label="question-4" class="tutorial-question panel-body">
+<div id="question-4-answer_container" class="shiny-html-output"></div>
+<div id="question-4-message_container" class="shiny-html-output"></div>
+<div id="question-4-action_button_container" class="shiny-html-output"></div>
+<script>if (Tutorial.triggerMathJax) Tutorial.triggerMathJax()</script>
+</div>
+</div>
+</div>
+</div>
+<div id="section-matrix-inversion-part-1" class="section level2">
+<h2>Matrix inversion part 1</h2>
+<div class="anxiety">
+<h3 id="section-too-much-maths">Too much maths!</h3>
+<p>Although the following sections of matrix inversion may look a bit confronting if you haven't done any matrix algebra previously, you nonetheless are strongly encouraged to work through them, because they illustrate how matrices can be used to solve systems of equations. And as we will see in the next chapter, fitting a statistical model is, in fact, having to solve a (potentially very large) system of equations. Understanding how computers can be made to do this using matrices is a key insight, and one which will stand you in good stead as a data scientist in the future.</p>
+<p>Remember, you will not be examined or assessed on your understanding of this material, so don't become too stressed if it seems incomprehensible at first. In fact, when broken down into individual steps, it involves only basic arithmetic manipulations. Further explanation can be provided in the face-to-face sessions for this course, and/or in the OpenLearning online environment used to host the course.</p>
+</div>
+<p>So far we have defined matrix addition, subtraction, and multiplication. We have not, however, yet defined matrix division.</p>
+<p>Consider this simple algebraic problem:</p>
+<p><span class="math display">\[
+\begin{align}
+\begin{split}
+2x &amp; = 6 \\
+\frac{1}{2} \times 2x &amp; = \frac{1}{2} \times 6 \\
+x &amp; = 3
+\end{split}
+\end{align}
+\]</span></p>
+<p>The quantity <span class="math inline">\(\frac{1}{2} = 2^{-1}\)</span> can be called the inverse of 2. This is exactly what we are doing when we divide in scalar algebra.</p>
+<p>So, now let us define a matrix which the inverse of <span class="math inline">\(\mathbf{A}\)</span>. Let's call that matrix <span class="math inline">\(\mathbf{A}^{−1}\)</span>. In scalar algebra, a number times its inverse equals one. In matrix algebra, then, we must find the matrix <span class="math inline">\(\mathbf{A}^{−1}\)</span> where <span class="math inline">\(\mathbf{AA}^{−1} = \mathbf{A}^{−1}\mathbf{A} = \mathbf{I}\)</span>, where <span class="math inline">\(\mathbf{I}\)</span> is the identity matrix.</p>
+<p>Given this matrix, we can then do the following, which is exactly what one needs to do when solving systems of equations, because <span class="math inline">\(\mathbf{A}^{-1}\mathbf{A} = \mathbf{I}\)</span>:</p>
+<p><span class="math display">\[
+\begin{align}
+\begin{split}
+\mathbf{A}x &amp; = b \\
+\mathbf{A}^{-1}\mathbf{A}x &amp; = \mathbf{A}^{-1}b \\
+x &amp; = \mathbf{A}^{-1}b
+\end{split}
+\end{align}
+\]</span></p>
+<p>So, how do we compute <span class="math inline">\(\mathbf{A}^{−1}\)</span>? We can solve this problem by computing the <em>determinants</em> of square matrices using a method called <em>cofactor expansion</em>. We can then use these <em>determinants</em> to form the inverted matrix <span class="math inline">\(\mathbf{A}^{-1}\)</span>.</p>
+<p>Determinants are defined only for square matrices, and are scalars. They are denoted <span class="math inline">\(\det \mathbf{A} = \begin{vmatrix}\mathbf{A}\end{vmatrix}\)</span>. As we will see, determinants play a key role in determining whether a matrix is invertable, and what the inverse is.</p>
+<p>For an order (2, 2) matrix, the determinant is calculated as follows:</p>
+<p><span class="math display">\[
+\det \mathbf{A} = \begin{vmatrix}\mathbf{A}\end{vmatrix} = 
+\begin{vmatrix}
+a_{11} &amp; a_{12} \\
+a_{21} &amp; a_{22} \\
+\end{vmatrix} =
+a_{11}a_{22} - a_{12}a_{21}
+\]</span></p>
+<p>Some concrete examples will make this clearer:</p>
+<p><span class="math display">\[
+\mathbf{G} = 
+\begin{bmatrix}
+2 &amp; 4 \\
+6 &amp; 3 \\
+\end{bmatrix} \qquad
+\begin{vmatrix}
+\mathbf{G}
+\end{vmatrix} = 
+2 \times 3 - 4 \times 6 = -18
+\]</span></p>
+<p><span class="math display">\[
+\mathbf{\Gamma} = 
+\begin{bmatrix}
+2 &amp; 4 \\
+1 &amp; 2 \\
+\end{bmatrix} \qquad
+\begin{vmatrix}
+\mathbf{\Gamma}
+\end{vmatrix} = 
+2 \times 2 - 4 \times 1 = 0
+\]</span></p>
+<p>That's easy enough for an order (2, 2) matrix, but it is a bit more involved for large matrices. To compute determinants, we need to define a few other quantities: for an order (<em>n</em>, <em>n</em>) square matrix <span class="math inline">\(\mathbf{A}\)</span>, we can define the cofactor <span class="math inline">\(\theta_{r,s}\)</span> for each element of <span class="math inline">\(\mathbf{A}\)</span>: <span class="math inline">\(a_{r,s}\)</span>. The cofactor of <span class="math inline">\(a_{r,s}\)</span> is written as:</p>
+<p><span class="math display">\[
+\theta_{r,s} = (-1)^{(r + s)} \begin{vmatrix}\mathbf{A}_{r,s}\end{vmatrix}
+\]</span></p>
+<p>where <span class="math inline">\(\mathbf{A}_{r,s}\)</span> is the matrix formed after deleting row <em>r</em> and column <em>s</em> of the original matrix (sometimes called the <em>minor</em> of <span class="math inline">\(\mathbf{A}\)</span>). Thus, each element of the matrix <span class="math inline">\(\mathbf{A}\)</span> has its own cofactor. We therefore can compute the matrix of cofactors for a matrix. Here is a concrete example:</p>
+<p><span class="math display">\[
+\mathbf{B} = 
+\begin{bmatrix}
+1 &amp; 3 &amp; 2 \\
+4 &amp; 5 &amp; 6 \\
+8 &amp; 7 &amp; 9 \\
+\end{bmatrix}
+\]</span></p>
+<p>We can compute the matrix of cofactors for <span class="math inline">\(\mathbf{B}\)</span> thus (remember that cofactors are just the matrix formed after deleting row <em>r</em> and column <em>s</em> of the original matrix):</p>
+<p><span class="math display">\[
+\mathbf{\Theta}_B = 
+\begin{bmatrix}
+\phantom{-}
+\begin{vmatrix}
+5 &amp; 6 \\
+7 &amp; 9 \\
+\end{vmatrix} &amp; &amp;
+-
+\begin{vmatrix}
+4 &amp; 6 \\
+8 &amp; 9 \\
+\end{vmatrix} &amp; &amp;
+\phantom{-}
+\begin{vmatrix}
+4 &amp; 5 \\
+8 &amp; 7 \\
+\end{vmatrix} \\
+-
+\begin{vmatrix}
+3 &amp; 2 \\
+7 &amp; 9 \\
+\end{vmatrix} &amp; &amp;
+\phantom{-}
+\begin{vmatrix}
+1 &amp; 2 \\
+8 &amp; 9 \\
+\end{vmatrix} &amp; &amp;
+-
+\begin{vmatrix}
+1 &amp; 3 \\
+8 &amp; 7 \\
+\end{vmatrix} \\
+\phantom{-}
+\begin{vmatrix}
+3 &amp; 2 \\
+5 &amp; 6 \\
+\end{vmatrix} &amp; &amp;
+-
+\begin{vmatrix}
+1 &amp; 2 \\
+4 &amp; 6 \\
+\end{vmatrix} &amp; &amp;
+\phantom{-}
+\begin{vmatrix}
+1 &amp; 3 \\
+4 &amp; 5 \\
+\end{vmatrix} \\
+\end{bmatrix}
+=
+\begin{bmatrix}
+\phantom{-}3 &amp; \phantom{-}12 &amp; -12 \\
+-13 &amp; -7 &amp; \phantom{-}17 \\
+\phantom{-}8 &amp; \phantom{-}2 &amp; -7 \\
+\end{bmatrix}
+\]</span></p>
+<p>We can use any row or column of the matrix of cofactors <span class="math inline">\(\mathbf{\Theta}_B\)</span> to compute the determinant of a matrix <span class="math inline">\(\mathbf{A}\)</span>. For any row <span class="math inline">\(i\)</span>,</p>
+<p><span class="math display">\[
+\begin{vmatrix}
+\mathbf{A}
+\end{vmatrix} = 
+\sum_{j=1}^{n}a_{ij}\theta_{ij}
+\]</span></p>
+<p>Or for any column <span class="math inline">\(j\)</span>,</p>
+<p><span class="math display">\[
+\begin{vmatrix}
+\mathbf{A}
+\end{vmatrix} = 
+\sum_{i=1}^{n}a_{ij}\theta_{ij}
+\]</span></p>
+<p>These formulae allow the determinant of an order <em>n</em> matrix to be decreased to order (<em>n</em> − 1). Any row or column can be used to do the expansion, called <em>cofactor expansion</em>, and compute the determinant. It can be repeated on very large matrices many times to get down to an order 2 matrix.</p>
+<p>Returning to our concrete example, above, we will perform the cofactor expansion on the first row:</p>
+<p><span class="math display">\[
+\begin{align}
+\begin{split}
+\begin{vmatrix}
+\mathbf{B}
+\end{vmatrix} &amp; = 
+\sum_{j=1}^{n}b_{1j}\theta_{1j} \\
+&amp; = (1 \times 3) + (3 \times 12) + (2 \times (-12)) \\
+&amp; = 15
+\end{split}
+\end{align}
+\]</span></p>
+<p>Let's repeat that on the second column to check that we get the same determinant:</p>
+<p><span class="math display">\[
+\begin{align}
+\begin{split}
+\begin{vmatrix}
+\mathbf{B}
+\end{vmatrix} &amp; = 
+\sum_{i=1}^{n}b_{i2}\theta_{i2} \\
+&amp; = (3 \times 12) + (5 \times (-7) + (7 \times 2) \\
+&amp; = 15
+\end{split}
+\end{align}
+\]</span></p>
+<p>You can do this for the other two rows, or the other two columns, and get the same result. Now, for any given matrix, you can perform the cofactor expansion and compute the determinant. Of course, as the order <em>n</em> increases, this gets terribly difficult, because to compute each element of the cofactor matrix, you have to do another expansion. Computers, however, do this quite easily.</p>
+<p>In <span class="math inline">\(\textsf{R}\)</span>, the <code>det()</code> function is used to compute the determinant of a square matrix. Let's use it to compute the determinant of matrix <span class="math inline">\(\mathbf{B}\)</span> as defined above.</p>
+<div class="tutorial-exercise" data-label="compute-determinant-b" data-caption="Code" data-completion="1" data-diagnostics="1" data-startover="1" data-lines="0">
+<pre class="text"><code>B &lt;- matrix(c(1,3,2,4,5,6,8,7,9), ncol = 3, byrow = TRUE)
+B
+
+det(B)</code></pre>
+<script type="application/json" data-opts-chunk="1">{"fig.width":6.5,"fig.height":4,"fig.retina":2,"fig.align":"default","fig.keep":"high","fig.show":"asis","out.width":624,"warning":true,"error":false,"message":true,"exercise.df_print":"paged","exercise.checker":"NULL"}</script>
+</div>
+<div id="section-quiz-3" class="section level3">
+<h3>Quiz</h3>
+<div class="panel panel-default">
+<div data-label="question-5" class="tutorial-question panel-body">
+<div id="question-5-answer_container" class="shiny-html-output"></div>
+<div id="question-5-message_container" class="shiny-html-output"></div>
+<div id="question-5-action_button_container" class="shiny-html-output"></div>
+<script>if (Tutorial.triggerMathJax) Tutorial.triggerMathJax()</script>
+</div>
+</div>
+</div>
+</div>
+<div id="section-matrix-inversion-part-2" class="section level2">
+<h2>Matrix inversion part 2</h2>
+<p>Now we can define a matrix which is the inverse of <span class="math inline">\(\mathbf{A}\)</span> – we'll call that matrix <span class="math inline">\(\mathbf{A^{-1}}\)</span>. In scalar algebra, a number times its inverse equals one. In matrix algebra, then, we must find the matrix <span class="math inline">\(\mathbf{A^{-1}}\)</span> where <span class="math inline">\(\mathbf{A A^{-1}} = \mathbf{A^{-1} A} = \mathbf{I}\)</span> (recalling that <span class="math inline">\(\mathbf{I}\)</span> is the identity matrix).</p>
+<p>We have defined two important quantities that one can use to compute inverses of matrices: the <em>determinant</em> and the <em>matrix of cofactors</em>. The determinant of a matrix <span class="math inline">\(\mathbf{A}\)</span> is denoted <span class="math inline">\(\begin{vmatrix}\mathbf{A}\end{vmatrix}\)</span>, and the matrix of cofactors we denoted <span class="math inline">\(\mathbf{\Theta}_A\)</span>.</p>
+<p>There is one more quantity that we need to define, the <em>adjoint</em>. The adjoint of a matrix <span class="math inline">\(\mathbf{A}\)</span> is denoted <span class="math inline">\(\textrm{adj}(\mathbf{A})\)</span>. The adjoint is simply the matrix of cofactors transposed:</p>
+<p><span class="math display">\[
+\textrm{adj}(\mathbf{A}) = \mathbf{\Theta_A}^T = 
+\begin{bmatrix}\theta_{r,s}\end{bmatrix}^T = 
+\begin{bmatrix}
+(-1)^{(r + s)}
+\begin{vmatrix}\mathbf{A_{r,s}}\end{vmatrix}
+\end{bmatrix}^T
+\]</span></p>
+<p>where, as defined above, <span class="math inline">\(\mathbf{A}_{r,s}\)</span> is the matrix formed after deleting row <em>r</em> and column <em>s</em> of the original matrix <span class="math inline">\(\mathbf{A}\)</span> (also called the <em>minor of <span class="math inline">\(\mathbf{A}\)</span></em>).</p>
+<p>We now know all we need to know to compute inverses. It can be shown that the inverse of a matrix <span class="math inline">\(\mathbf{A}\)</span> is defined as follows:</p>
+<p><span class="math display">\[
+\mathbf{A^{-1}} = \frac{1}{\begin{vmatrix}\mathbf{A}\end{vmatrix}} 
+\textrm{adj}(\mathbf{A})
+\]</span></p>
+<p>Thus, for any matrix <span class="math inline">\(\mathbf{A}\)</span> that is invertable, we can now compute the inverse. This is trival to do by hand for order (2, 2) matrices, and only takes a few minutes for order (3, 3) matrices. However it becomes much more difficult for larger matrices, but fortunately computers can compute inverses very easily, as we will see below.</p>
+</div>
+<div id="section-examples-of-matrix-inversion" class="section level2">
+<h2>Examples of matrix inversion</h2>
+<p>Let's look at some concrete examples of matrix inversion.</p>
+<p>First, we'll find the inverse of an order (2, 2) matrix called <span class="math inline">\(\mathbf{C}\)</span>:</p>
+<p><span class="math display">\[
+\mathbf{C} = 
+\begin{bmatrix}
+2 &amp; 4 \\
+6 &amp; 3 \\
+\end{bmatrix}
+\]</span></p>
+<p>First we calculate the determinant of <span class="math inline">\(\mathbf{C}\)</span>:</p>
+<p><span class="math display">\[
+\begin{vmatrix}
+\mathbf{C}
+\end{vmatrix} = (2 \times 3) - (6 \times 4) = -18
+\]</span></p>
+<p>Next we write the matrix of cofactors for <span class="math inline">\(\mathbf{C}\)</span>:</p>
+<p><span class="math display">\[
+\mathbf{\Theta_C} = 
+\begin{bmatrix}
+\phantom{-}3 &amp; -6 \\
+-4 &amp; \phantom{-}2
+\end{bmatrix}
+\]</span></p>
+<p>Then we transpose <span class="math inline">\(\mathbf{\Theta_C}\)</span> to get the adjoint for <span class="math inline">\(\mathbf{C}\)</span>:</p>
+<p><span class="math display">\[
+\textrm{adj}(\mathbf{C}) =
+\mathbf{\Theta_C}^T = 
+\begin{bmatrix}
+\phantom{-}3 &amp; -4 \\
+-6 &amp; \phantom{-}2
+\end{bmatrix}
+\]</span></p>
+<p>Now that we have the determinant and the adjoint of <span class="math inline">\(\mathbf{C}\)</span>, we can write the inverse of <span class="math inline">\(\mathbf{C}\)</span> (refer to the formulae above to check these calculations:</p>
+<p><span class="math display">\[
+\mathbf{C^{-1}} =
+\frac{1}{18} 
+\begin{bmatrix}
+\phantom{-}3 &amp; -4 \\
+-6 &amp; \phantom{-}2
+\end{bmatrix} =
+\begin{bmatrix}
+\frac{-3}{18} &amp; \frac{4}{18} \\
+\frac{6}{18} &amp; \frac{-2}{18}
+\end{bmatrix}
+\]</span></p>
+<p>To double-check, let's calculate the product <span class="math inline">\(\mathbf{C^{-1}C}\)</span> and makes sure it equals <span class="math inline">\(\mathbf{I_2}\)</span>, the identity matrix of order (2, 2):</p>
+<p><span class="math display">\[
+\mathbf{C^{-1}C} =
+\begin{bmatrix}
+\frac{-3}{18} &amp; \frac{4}{18} \\
+\frac{6}{18} &amp; \frac{-2}{18}
+\end{bmatrix}
+\begin{bmatrix}
+2 &amp; 4 \\
+6 &amp; 3 \\
+\end{bmatrix} = 
+\begin{bmatrix}
+\frac{18}{18} &amp; \frac{0}{18} \\
+\frac{0}{18} &amp; \frac{18}{18}
+\end{bmatrix} = 
+\begin{bmatrix}
+1 &amp; 0 \\
+0 &amp; 1
+\end{bmatrix} =
+\mathbf{I_2}
+\]</span></p>
+<p>OK, that's all fairly tedious, and that's just for an order (2, 2) matrix.</p>
+<p>Here is a room full of human computers, courtesy of JPL (Jet Propulsion labs at NASA), fitting a large linear model. Each person is computing matrices of cofactors with the aid of a calculating machine…</p>
+<div class="figure">
+<img src="images/human_computers_jpl.jpg" alt="" />
+<p class="caption">Human computers at JPL</p>
+</div>
+<p>Luckily, computers make it much easier to calculate matrix inversions. <span class="math inline">\(\textsf{R}\)</span> provides the <code>solve()</code> function to find a matrix inversion in a single step: Let's replicate the calculations above in <span class="math inline">\(\textsf{R}\)</span>:</p>
+<div class="tutorial-exercise" data-label="compute-inverse-c-in-steps" data-caption="Code" data-completion="1" data-diagnostics="1" data-startover="1" data-lines="0">
+<pre class="text"><code># define our original matrix C
+C &lt;- matrix(c(2,4,6,3), ncol = 2, byrow = TRUE)
+C
+
+# find the inverse of C using solve()
+inverse_of_C &lt;- solve(C)
+inverse_of_C
+
+# check that inverse_of_C really is the inverse of C by
+# matrix multiplying it by C and checking that the result is
+# the identity matrix
+inverse_of_C %*% C</code></pre>
+<script type="application/json" data-opts-chunk="1">{"fig.width":6.5,"fig.height":4,"fig.retina":2,"fig.align":"default","fig.keep":"high","fig.show":"asis","out.width":624,"warning":true,"error":false,"message":true,"exercise.df_print":"paged","exercise.checker":"NULL"}</script>
+</div>
+<p>OK, that was a lot easier!</p>
+<p>Let's try again, but with matrix <strong>B</strong> that we defined earlier. Recall that it looked like this:</p>
+<p><span class="math display">\[
+\mathbf{B} = 
+\begin{bmatrix}
+1 &amp; 3 &amp; 2 \\
+4 &amp; 5 &amp; 6 \\
+8 &amp; 7 &amp; 9 \\
+\end{bmatrix}
+\]</span></p>
+<p>We computed the cofactors for this matrix, and they looked like this:</p>
+<p><span class="math display">\[
+\mathbf{\Theta_B} = 
+\begin{bmatrix}
+\phantom{-}3 &amp; \phantom{-}12 &amp; -12 \\
+-13 &amp; -7 &amp; \phantom{-}17 \\
+\phantom{-}8 &amp; \phantom{-}2 &amp; -7 \\
+\end{bmatrix}
+\]</span></p>
+<p>Thus the adjoint of <strong>B</strong> is just the transpose of the cofactors of <strong>B</strong>:</p>
+<p><span class="math display">\[
+\mathbf{\Theta_B}^T = 
+\begin{bmatrix}
+\phantom{-}3 &amp; -13 &amp; 8 \\
+\phantom{-}12 &amp; -7 &amp; 2 \\
+-12 &amp; \phantom{-}17 &amp; 7 \\
+\end{bmatrix}
+\]</span></p>
+<p>We also computed the determinant of <strong>B</strong>: <span class="math inline">\(\begin{vmatrix} \mathbf{B} \end{vmatrix} = 15\)</span>. Given all this information, we can write the inverse of <strong>B</strong>:</p>
+<p><span class="math display">\[
+\mathbf{B^{-1}} = 
+\frac{1}{15}
+\mathbf{\Theta_B}^T = 
+\frac{1}{15}
+\begin{bmatrix}
+\phantom{-}3 &amp; -13 &amp; 8 \\
+\phantom{-}12 &amp; -7 &amp; 2 \\
+-12 &amp; \phantom{-}17 &amp; 7 \\
+\end{bmatrix}
+\]</span></p>
+<p>We won't do the arithmetic needed to calculate the actual values in <span class="math inline">\(\mathbf{B^{-1}}\)</span>, we'll let <span class="math inline">\(\textsf{R}\)</span> do the hard work:</p>
+<div class="tutorial-exercise" data-label="compute-inverse-b-in-steps" data-caption="Code" data-completion="1" data-diagnostics="1" data-startover="1" data-lines="0">
+<pre class="text"><code># define our original matrix B
+B &lt;- matrix(c(1,3,2,4,5,6,8,7,9), ncol = 3, byrow = TRUE)
+B
+
+# find the inverse of B using solve()
+inverse_of_B &lt;- solve(B)
+inverse_of_B
+
+# check that inverse_of_B really is the inverse of B by
+# matrix multiplying it by B and checking that the result is
+# the identity matrix
+inverse_of_B %*% B</code></pre>
+<script type="application/json" data-opts-chunk="1">{"fig.width":6.5,"fig.height":4,"fig.retina":2,"fig.align":"default","fig.keep":"high","fig.show":"asis","out.width":624,"warning":true,"error":false,"message":true,"exercise.df_print":"paged","exercise.checker":"NULL"}</script>
+</div>
+<div class="under-the-bonnet">
+<h3 id="section-where-are-all-the-zeroes">Where are all the zeroes?</h3>
+<p>You'll notice that the last calculation, for <span class="math inline">\(\mathbf{B^{-1}B}\)</span>, resulted in a matrix with 1 in the diagonal cells, but with some very small values in the off-diagonal cells, where we were expecting zeroes (since the result should be an identity matrix of order (3, 3)). This is because numeric (floating-point) computation on digital computers is not exact, even on modern 64-bit computers – it is only an approximation, and rounding errors in the computations may result in very small residual values being returned instead of zero. This is not a characteristic of only <span class="math inline">\(\textsf{R}\)</span> – all software that is commonly used for statistics shares these characteristics, which are an inherent feature (or limitation) of the underlying hardware on which the software runs. In most cases, these errors are so tiny that it makes little or no difference to our results, but it does spoil the effect when we were expecting to see a nice, clear identity matrix. Of course, we can readily use the <code>round()</code> function to convert the close-to-zero values to zero, even when we round the values at the 14th decimal place – in other words, the errors are <strong>very</strong> small!</p>
+<div class="tutorial-exercise-support" data-label="compute-inverse-b-solve_set-up" data-caption="Code" data-completion="1" data-diagnostics="1" data-startover="1" data-lines="0">
+<pre class="text"><code>B &lt;- matrix(c(1,3,2,4,5,6,8,7,9), ncol = 3, byrow = TRUE)
+inverse_of_B &lt;- solve(B)</code></pre>
+</div>
+<div class="tutorial-exercise" data-label="round-inverse-b" data-caption="Code" data-completion="1" data-diagnostics="1" data-startover="1" data-lines="0">
+<pre class="text"><code>inverse_of_B %*% B
+
+# now round the values to the nearest 0.00000000000001
+round(inverse_of_B %*% B, digits=14)</code></pre>
+<script type="application/json" data-opts-chunk="1">{"fig.width":6.5,"fig.height":4,"fig.retina":2,"fig.align":"default","fig.keep":"high","fig.show":"asis","out.width":624,"warning":true,"error":false,"message":true,"exercise.df_print":"paged","exercise.setup":"compute-inverse-b-solve_set-up","exercise.checker":"NULL"}</script>
+</div>
+</div>
+</div>
+<div id="section-diagonal-matrices" class="section level2">
+<h2>Diagonal matrices</h2>
+<p>There is one type of matrix for which the computation of the inverse is nearly trivial: diagonal matrices. recall that diagonal matrices are square matrices of the form:</p>
+<p><span class="math display">\[ 
+\mathbf{A}  = 
+ \begin{bmatrix}
+  a_{11} &amp; 0      &amp; 0      &amp; \ldots &amp; 0 \\
+  0      &amp; a_{22} &amp; 0      &amp; \ldots &amp; 0 \\
+  0      &amp; 0      &amp; a_{33} &amp; \ldots &amp; 0 \\
+  \vdots &amp; \vdots &amp; \vdots &amp; \ddots &amp; \vdots  \\
+  0      &amp; 0      &amp; \ldots &amp; 0      &amp; a_{kk} 
+ \end{bmatrix}
+\]</span></p>
+<p>It can be shown that the inverse of <strong>A</strong> is the following:</p>
+<p><span class="math display">\[
+\mathbf{A}^{-1}  = 
+ \begin{bmatrix}
+  a_{11}^{-1} &amp; 0      &amp; 0      &amp; \ldots &amp; 0 \\
+  0      &amp; a_{22}^{-1} &amp; 0      &amp; \ldots &amp; 0 \\
+  0      &amp; 0      &amp; a_{33}^{-1} &amp; \ldots &amp; 0 \\
+  \vdots &amp; \vdots &amp; \vdots &amp; \ddots &amp; \vdots  \\
+  0      &amp; 0      &amp; \ldots &amp; 0      &amp; a_{kk}^{-1} 
+ \end{bmatrix}
+\]</span></p>
+<p>If we matrix multiply <span class="math inline">\(\mathbf{AA}^{−1}\)</span> we will get <span class="math inline">\(\mathbf{I}_k\)</span>. Let's verify that using <span class="math inline">\(\textsf{R}\)</span>, which handily provides the <code>diag()</code> function to construct diagonal matrices (note: the <code>diag()</code> function actually has four separate uses related to diagnonal matrices – see the manual page for the function for details, by typing <code>?diag</code> at the <span class="math inline">\(\textsf{R}\)</span> console prompt).</p>
+<div class="tutorial-exercise" data-label="diagonal-matrices-a" data-caption="Code" data-completion="1" data-diagnostics="1" data-startover="1" data-lines="16">
+<pre class="text"><code># create a diagonal matrix
+A &lt;- diag(c(1,3,2,4,6,5))
+A
+
+# calculate the inverse of A
+inverse_A &lt;- solve(A)
+inverse_A
+
+# check, this should be the order (6, 6) identity matrix
+inverse_A %*% A
+
+# check that programmatically!
+# create the order (6, 6) identity matrix
+I_6 &lt;- diag(1, 6)
+I_6</code></pre>
+<script type="application/json" data-opts-chunk="1">{"fig.width":6.5,"fig.height":4,"fig.retina":2,"fig.align":"default","fig.keep":"high","fig.show":"asis","out.width":624,"warning":true,"error":false,"message":true,"exercise.df_print":"paged","exercise.checker":"NULL"}</script>
+</div>
+<div id="section-activity-2" class="section level3">
+<h3>Activity</h3>
+<p>As data scientists, we shouldn't just check the equivalence of results by eye, we should also check them programmatically. Write some <span class="math inline">\(\textsf{R}\)</span> code to check that <code>inverse_of_A %*% A</code> does indeed equal the order (6, 6) identity matrix.</p>
+<div class="tutorial-exercise-support" data-label="check-identity-setup" data-caption="Code" data-completion="1" data-diagnostics="1" data-startover="1" data-lines="0">
+<pre class="text"><code># create a diagonal matrix
+A &lt;- diag(c(1,3,2,4,6,5))
+# calculate the inverse of A
+inverse_A &lt;- solve(A)
+# create the order (6, 6) identity matrix
+I_6 &lt;- diag(1, 6)</code></pre>
+</div>
+<div class="tutorial-exercise-support" data-label="check-identity-hint" data-caption="Code" data-completion="1" data-diagnostics="1" data-startover="1" data-lines="0">
+<pre class="text"><code># are they identical?
+identical(inverse_A %*% A, diag(1, 6))</code></pre>
+</div>
+<div class="tutorial-exercise" data-label="check-identity" data-caption="Code" data-completion="1" data-diagnostics="1" data-startover="1" data-lines="0">
+<script type="application/json" data-opts-chunk="1">{"fig.width":6.5,"fig.height":4,"fig.retina":2,"fig.align":"default","fig.keep":"high","fig.show":"asis","out.width":624,"warning":true,"error":false,"message":true,"exercise.df_print":"paged","exercise.checker":"NULL"}</script>
+</div>
+</div>
+</div>
+<div id="section-conditions-for-singularity" class="section level2">
+<h2>Conditions for singularity</h2>
+<p>Earlier we talked about the simple algebraic problem of solving for <span class="math inline">\(x\)</span>, and we showed that we needed to premultiply by <span class="math inline">\(x^{−1}\)</span> to solve a system of equations. This is the same operation as division. In scalar algebra, there is one number for which the inverse is not defined: 0. The quantity <span class="math inline">\(\frac{1}{0}\)</span> is not defined.</p>
+<p>Similarly, in matrix algebra there are a set of matrices for which an inverse does not exist. Remember our formula for the inverse of our matrix <span class="math inline">\(\mathbf{A}\)</span>:</p>
+<p><span class="math display">\[
+\mathbf{A}^{-1} = 
+\frac{1}{\begin{vmatrix} \mathbf{A} \end{vmatrix}} 
+\textrm{adj}(\mathbf{A})
+\]</span></p>
+<p>So, under what conditions will this not be defined?</p>
+<p>The answer is when the fraction <span class="math inline">\(\frac{1}{\begin{vmatrix} \mathbf{A} \end{vmatrix}}\)</span> is not defined. This occurs, of course, if the determinant of <span class="math inline">\(\mathbf{A}\)</span> equals zero. In that case, the inverse of $, <span class="math inline">\(\mathbf{A}^{-1}\)</span> is not defined.</p>
+<p>For what sorts of matrices is this a problem? It can be shown that matrices that have rows or columns that are <em>linearly dependent</em> on other rows or columns have determinants that are equal to zero. For these matrices, the determinant is undefined.</p>
+<p>Let's consider an order (<em>k</em>, <em>k</em>) matrix <span class="math inline">\(\mathbf{A}\)</span>, that we will denote using column vectors notation:</p>
+<p><span class="math display">\[
+\mathbf{A} = 
+\begin{bmatrix}
+\mathbf{a_1} &amp;
+\mathbf{a_1} &amp;
+\ldots &amp;
+\mathbf{a_k} 
+\end{bmatrix}
+\]</span></p>
+<p>Each of the column vectors <span class="math inline">\(\mathbf{a_i}\)</span> is of order (<em>k</em>, 1). A column <span class="math inline">\(\mathbf{a_i}\)</span> of <span class="math inline">\(\mathbf{A}\)</span> is said to be linearly independent of the others if there exists no set of scalars <span class="math inline">\(\alpha_j\)</span> such that:</p>
+<p><span class="math display">\[
+\mathbf{a_i} = 
+\sum_{j \ne i} \alpha_j\mathbf{a_j}
+\]</span></p>
+<p>In words, given the rest of the columns in our matrix, if we cannot find a weighted sum to get the column we are interested in, then we can say that that column is <em>linearly independent</em>. If we <strong>can</strong> find a weighted sum of the other columns that will give us values the same as the column of interest, then we say that that column is <em>linearly dependent</em> (on some other columns in the matrix).</p>
+<p>This lets us define the term <em>rank</em>. The <em>rank</em> of a matrix is defined as the number of <strong>linearly independent</strong> columns (or rows) of a matrix. If all of the columns are independent, then we say that the matrix is of <em>full rank</em>. We denote the rank of a matrix as <span class="math inline">\(\textrm{r}(\mathbf{A})\)</span>. By definition, <span class="math inline">\(\textrm{r}(\mathbf{A})\)</span> is an integer that can take values from 1 to <em>k</em> (where <em>k</em> is the number of columns in the matrix). The rank of a matrix is something that is quite difficult to compute by hand, but can be computed by software packages using several methods.</p>
+<p>First let's calculate the determinant of this matrix:</p>
+<p><span class="math display">\[
+\begin{vmatrix}
+2 &amp; -4 \\
+3 &amp; -6 \\
+\end{vmatrix}
+= (2 \times -6) - (3 \times -4) = -12 + 12 = 0
+\]</span></p>
+<p>Notice that the second column is -2 times the first column – thus it is linearly dependent, and thus the matrix is of rank 1, and thus not of full rank.</p>
+<p>We can verify this using <span class="math inline">\(\textsf{R}\)</span>. The <code>rankMatrix()</code> function in the <code>Matrix</code> library in <span class="math inline">\(\textsf{R}\)</span> will compute the rank of a matrix (see the manual pages for it for details).</p>
+<div class="tutorial-exercise" data-label="compute-rank-a" data-caption="Code" data-completion="1" data-diagnostics="1" data-startover="1" data-lines="0">
+<pre class="text"><code>A &lt;- matrix(c(2, -4, 3, -6), byrow=TRUE, ncol=2)
+A
+
+det(A)
+
+Matrix::rankMatrix(A)[[1]]</code></pre>
+<script type="application/json" data-opts-chunk="1">{"fig.width":6.5,"fig.height":4,"fig.retina":2,"fig.align":"default","fig.keep":"high","fig.show":"asis","out.width":624,"warning":true,"error":false,"message":true,"exercise.df_print":"paged","exercise.checker":"NULL"}</script>
+</div>
+</div>
+<div id="section-activity-invertible-or-not" class="section level2">
+<h2>Activity: invertible or not?</h2>
+<p>Here is an order (3, 3) matrix <strong>D</strong>:</p>
+<p><span class="math display">\[
+\mathbf{D} = 
+\begin{bmatrix}
+1 &amp; 2 &amp; 4 \\
+3 &amp; 0 &amp; 6 \\
+5 &amp; 3 &amp; 13 \\
+\end{bmatrix}
+\]</span></p>
+<p>Write some <span class="math inline">\(\textsf{R}\)</span> code below to calculate its determinant and rank, and thereby conclude whether it is invertible or not?</p>
+<p>If it is not invertible, or not of full rank, why not?</p>
+<div class="tutorial-exercise-support" data-label="invertible-or-not-hint-1" data-caption="Code" data-completion="1" data-diagnostics="1" data-startover="1" data-lines="0">
+<pre class="text"><code># define the matrix
+D &lt;- matrix(c(1, 3, 5, 2, 0, 3, 4, 6, 13), ncol=3)</code></pre>
+</div>
+<div class="tutorial-exercise-support" data-label="invertible-or-not-hint-2" data-caption="Code" data-completion="1" data-diagnostics="1" data-startover="1" data-lines="0">
+<pre class="text"><code># get the determinant of the matrix
+det(D)</code></pre>
+</div>
+<div class="tutorial-exercise-support" data-label="invertible-or-not-hint-3" data-caption="Code" data-completion="1" data-diagnostics="1" data-startover="1" data-lines="0">
+<pre class="text"><code># find the rank of the matrix
+Matrix::rankMatrix(D)[[1]]</code></pre>
+</div>
+<div class="tutorial-exercise-support" data-label="invertible-or-not-hint-4" data-caption="Code" data-completion="1" data-diagnostics="1" data-startover="1" data-lines="0">
+<pre class="text"><code># Notice that that the first column times 2 plus the second column
+# equals the third column. The rank of this matrix is 2 – it is not
+# of full rank.</code></pre>
+</div>
+<div class="tutorial-exercise" data-label="invertible-or-not" data-caption="Code" data-completion="1" data-diagnostics="1" data-startover="1" data-lines="0">
+<script type="application/json" data-opts-chunk="1">{"fig.width":6.5,"fig.height":4,"fig.retina":2,"fig.align":"default","fig.keep":"high","fig.show":"asis","out.width":624,"warning":true,"error":false,"message":true,"exercise.df_print":"paged","exercise.checker":"NULL"}</script>
+</div>
+</div>
+<div id="section-a-video-interlude" class="section level2">
+<h2>A video interlude</h2>
+<p>A useful YouTube video that recaps a few points covered above.</p>
+<p><img src="https://www.youtube.com/watch?v=1QYdrMRhNJs&amp;vq=large" /></p>
+</div>
+<div id="section-inverses-and-nomenclature" class="section level2">
+<h2>Inverses and nomenclature</h2>
+<p>Here are some important facts about inverses and their nomenclature:</p>
+<ul>
+<li>a matrix must be square for it to be invertible, although not all square matrices are invertible.</li>
+<li>if the inverse of a matrix does not exist, we say that it is <em>singular</em> or that a <em>singularity</em> exists.</li>
+<li>the following statements are equivalent: <em>full rank</em> = <em>nonsingular</em> = <em>invertable</em>. All of these imply that <span class="math inline">\(\mathbf{A^{-1}}\)</span> exists.</li>
+<li>if the determinant of <span class="math inline">\(\mathbf{A}\)</span> equals zero, then <span class="math inline">\(\mathbf{A}\)</span> is said to be singular, or not invertable. More generally, if <span class="math inline">\(\begin{vmatrix}\mathbf{A} \end{vmatrix} = 0\)</span> then <span class="math inline">\(\mathbf{A}\)</span> is singular.</li>
+<li>if the determinant of <span class="math inline">\(\mathbf{A}\)</span> is non-zero, then <span class="math inline">\(\mathbf{A}\)</span> is said to be nonsingular, or invertable. In other words, the inverse exists. More generally, if <span class="math inline">\(\begin{vmatrix}\mathbf{A} \end{vmatrix} \ne 0\)</span> then <span class="math inline">\(\mathbf{A}\)</span> is nonsingular.</li>
+<li>if a matrix <span class="math inline">\(\mathbf{A}\)</span> is not of full rank, it is not invertable – that is, it is singular.</li>
+</ul>
+</div>
+<div id="section-why-does-any-of-this-matter" class="section level2">
+<h2>Why does any of this matter?</h2>
+<p>At this point, you may be asking yourself why any of this matters. The reason is that matrices are particularly useful when solving systems of equations, which is exactly what we need to do when fitting linear regression models using least squares estimators, as we will see in the next chapter of this course.</p>
+<p>Consider this set of three equations with three unknowns:</p>
+<p><span class="math display">\[
+\begin{align}
+\begin{split}
+x + 2y + z &amp; = 3 \\
+3x - y - 3z &amp; = -1 \\
+2x + 3y + z &amp; = 4 \\
+\end{split}
+\end{align}
+\]</span></p>
+<p>How would one go about solving this? There are various techniques, including substitution, and multiplying equations by constants and adding them to get single variables to cancel. However, all of that requires symbolic manipulation and doesn't scale well to very large systems of equations.</p>
+<p>But there is an easier way, and that is to use a matrix. Note that the system of equations above can be represented as follows:</p>
+<p><span class="math display">\[
+\begin{bmatrix}
+1 &amp; \phantom{-} 2 &amp; \phantom{-}1 \\
+3 &amp; -1 &amp; -3 \\
+2 &amp; \phantom{-}3 &amp; \phantom{-}1 \\
+\end{bmatrix} 
+\begin{bmatrix}
+x \\
+y \\
+z \\
+\end{bmatrix} = 
+\begin{bmatrix}
+\phantom{-} 3 \\
+-1 \\
+\phantom{-} 4 \\
+\end{bmatrix}
+\Longleftrightarrow 
+\mathbf{Ax} = \mathbf{b}
+\]</span></p>
+<p>We can solve the problem <span class="math inline">\(\mathbf{Ax} = \mathbf{b}\)</span> by pre-multiplying both sides by <span class="math inline">\(\mathbf{A^{−1}}\)</span> and simplifying. This yields the following:</p>
+<p><span class="math display">\[
+\begin{align}
+\begin{split}
+\mathbf{Ax} &amp; = \mathbf{b} \\
+\mathbf{A^{-1}Ax} &amp; = \mathbf{A^{-1}b} \\
+\mathbf{x} &amp; = \mathbf{A^{-1}b} \\
+\end{split}
+\end{align}
+\]</span></p>
+<p>remembering that <span class="math inline">\(\mathbf{A^{-1}A} = 1\)</span>.</p>
+<p>We can therefore solve a system of equations by computing the inverse of <span class="math inline">\(\mathbf{A}\)</span>, and multiplying it by <strong>b</strong>. Cool!</p>
+<p>Here is out matrix <strong>A</strong> and its inverse:</p>
+<p><span class="math display">\[
+\mathbf{A} = 
+\begin{bmatrix}
+1 &amp; \phantom{-} 2 &amp; \phantom{-}1 \\
+3 &amp; -1 &amp; -3 \\
+2 &amp; \phantom{-}3 &amp; \phantom{-}1 \\
+\end{bmatrix} \qquad
+\mathbf{A}^{-1} = 
+\begin{bmatrix}
+\phantom{-} 8 &amp; \phantom{-} 1 &amp; -5 \\
+-9 &amp; -1 &amp; \phantom{-} 6 \\
+\phantom{-} 11 &amp; \phantom{-} 1 &amp; -7 \\
+\end{bmatrix}
+\]</span></p>
+<p>So now we can solve this system of simultaneous equations:</p>
+<p><span class="math display">\[
+\mathbf{x} = \mathbf{A^{-1}b} =
+\begin{bmatrix}
+\phantom{-} 8 &amp; \phantom{-} 1 &amp; -5 \\
+-9 &amp; -1 &amp; \phantom{-} 6 \\
+\phantom{-} 11 &amp; \phantom{-} 1 &amp; -7 \\
+\end{bmatrix}
+\begin{bmatrix}
+\phantom{-} 3 \\
+-1 \\
+\phantom{-} 4 \\
+\end{bmatrix}
+=
+\begin{bmatrix}
+\phantom{-} 3 \\
+-2 \\
+\phantom{-} 4 \\
+\end{bmatrix}
+\]</span></p>
+<p>If we substitute the values 3, -2 and 4 into our system of equations in place of <em>x</em>, <em>y</em> and <em>z</em>, we see that we have indeed solved these simultaneous equations! This is why the function in <span class="math inline">\(\textsf{R}\)</span> to invert a matrix is called <code>solve()</code>!</p>
+<p><span class="math display">\[
+\begin{align}
+\begin{split}
+x + 2y + z &amp; = 3 \quad &amp; \Longleftrightarrow  \quad 3 + (2 \times -2) + 4 = 3 \\
+3x - y - 3z &amp; = -1 \quad &amp; \Longleftrightarrow \quad (3 \times 3) - (-2) - (3 \times 4) = -1 \\
+2x + 3y + z &amp; = 4 \quad &amp; \Longleftrightarrow \quad (2 \times 3) + (3 \times -2) + 4 = 4 \\
+\end{split}
+\end{align}
+\]</span></p>
+<p>This approach only works, however, if the matrix <strong>A</strong> is nonsingular. If it is not invertable, then this will not work. In fact, if a row or a column of the matrix <strong>A</strong> is a linear combination of the others, there are no solutions to the system of equations, or there are many solutions to the system of equations. In either case, the system is said to be <em>underdetermined</em>. We can compute the determinant of a matrix to see if it in fact is underdetermined.</p>
+<p>Let's repeat the calculations above using the <code>solve()</code> function in <span class="math inline">\(\textsf{R}\)</span>. Although we have used <code>solve()</code> to invert matrices when passed a single argument, the manual page for <code>solve()</code> actually states the following:</p>
+<pre><code>This generic function solves the equation a %*% x = b for x, where b can be either a vector or a matrix.
+
+Usage
+
+solve(a, b, ...)</code></pre>
+<p>So we can pass <code>solve()</code> the matrix <strong>A</strong> and colum vector <strong>b</strong> as defined above, derived from out system of equations, and expect it to return the column vector <strong>x</strong> containing the values of <em>x</em>, <em>y</em> and <em>z</em> that solve the simultaneous equations. Let's try:</p>
+<div class="tutorial-exercise" data-label="does-solve-work" data-caption="Code" data-completion="1" data-diagnostics="1" data-startover="1" data-lines="0">
+<pre class="text"><code>A &lt;- matrix(c(1, 3, 2, 2, -1, 3, 1, -3, 1), ncol=3)
+A
+
+b &lt;- matrix(c(3, -1, 4), ncol=1)
+b
+
+x &lt;- solve(A, b)
+x
+
+# check if we get the expected answer
+if (all.equal(x, matrix(c(3, -2, 4), ncol=1))) {
+  print(&quot;It works!&quot;)
+}</code></pre>
+<script type="application/json" data-opts-chunk="1">{"fig.width":6.5,"fig.height":4,"fig.retina":2,"fig.align":"default","fig.keep":"high","fig.show":"asis","out.width":624,"warning":true,"error":false,"message":true,"exercise.df_print":"paged","exercise.checker":"NULL"}</script>
+</div>
+<p><div class="panel-heading tutorial-quiz-title">One last question...</div></p>
+<div class="panel panel-default">
+<div data-label="quiz-final-1" class="tutorial-question panel-body">
+<div id="quiz-final-1-answer_container" class="shiny-html-output"></div>
+<div id="quiz-final-1-message_container" class="shiny-html-output"></div>
+<div id="quiz-final-1-action_button_container" class="shiny-html-output"></div>
+<script>if (Tutorial.triggerMathJax) Tutorial.triggerMathJax()</script>
+</div>
+</div>
+</div>
+<div id="section-geometric-approaches-to-linear-algebra" class="section level2">
+<h2>Geometric approaches to linear algebra</h2>
+<p>These notes have taken a fairly traditional, notational or symbolic approach to matrix algebra. However, there are other ways of looking at and thinking about many of the concepts – in particular, it is possible to think about scalars, vectors and matrices in geometric terms. There is a series of really excellent videos by Grant Sanderson, who is better known as <a href="http://www.3blue1brown.com">3Blue1Brown</a> available on YouTube which provides a fantastic introduction to linear algebra from a geometric perspective (pun intended). Such geometric explanations may be helpful for those who struggle with the purely symbolic approach, as Grant explains in the first video, below, and they may provide deeper insights for those who are already familiar with traditional, notational and symbolic approaches to matrices and linear algebra. The full series of these videos can be found on <a href="https://www.3blue1brown.com/essence-of-linear-algebra">YouTube</a>.</p>
+<p>Note that there is a minor error in this video: at around 30 seconds in, there is a typo in how the determinant is written, which should be <span class="math inline">\(ad - bc\)</span> (we cover determinants in a later section of this tutorial).</p>
+<p><img src="https://www.youtube.com/watch?v=kjBOesZCoqc&amp;vq=hd720" /></p>
+</div>
+<div id="section-in-the-next-chapter" class="section level2">
+<h2>In the next chapter…</h2>
+<p>Congratulations on working through this chapter! In the next chapter we'll see how all this matrix algebra is used to fit linear models (and in later chapters, generalised linear models).</p>
+
+<script type="application/shiny-prerendered" data-context="server-start">
+library(learnr)
+knitr::opts_chunk$set(echo = FALSE)
+</script>
+ 
+<script type="application/shiny-prerendered" data-context="server">
+learnr:::register_http_handlers(session, metadata = list(id = "au.edu.unsw.cbdrh.hdat9600.tutorials.matrices"))
+</script>
+ 
+<script type="application/shiny-prerendered" data-context="server">
+session$onSessionEnded(function() {
+        learnr:::session_stop_event(session)
+      })
+</script>
+ 
+<script type="application/shiny-prerendered" data-context="server">
+# do not use - it interferes with the learnr "Start over" functionality
+# session$onSessionEnded(stopApp)
+</script>
+ 
+<script type="application/shiny-prerendered" data-context="server">
+`tutorial-exercise-define-access-matrices-result` <- learnr:::setup_exercise_handler(reactive(req(input$`tutorial-exercise-define-access-matrices-code-editor`)), session)
+output$`tutorial-exercise-define-access-matrices-output` <- renderUI({
+  `tutorial-exercise-define-access-matrices-result`()
+})
+</script>
+ 
+<script type="application/shiny-prerendered" data-context="server">
+`tutorial-exercise-define-access-matrices-byrows-result` <- learnr:::setup_exercise_handler(reactive(req(input$`tutorial-exercise-define-access-matrices-byrows-code-editor`)), session)
+output$`tutorial-exercise-define-access-matrices-byrows-output` <- renderUI({
+  `tutorial-exercise-define-access-matrices-byrows-result`()
+})
+</script>
+ 
+<script type="application/shiny-prerendered" data-context="server">
+`tutorial-exercise-get-dim-of-a-matrix-result` <- learnr:::setup_exercise_handler(reactive(req(input$`tutorial-exercise-get-dim-of-a-matrix-code-editor`)), session)
+output$`tutorial-exercise-get-dim-of-a-matrix-output` <- renderUI({
+  `tutorial-exercise-get-dim-of-a-matrix-result`()
+})
+</script>
+ 
+<script type="application/shiny-prerendered" data-context="server">
+learnr:::question_prerendered_chunk(structure(list(type = "learnr_radio", label = "quiz-1-1", question = structure("An order (4, 5) matrix:", html = TRUE, class = c("html", "character")), answers = list(structure(list(id = "lnr_ans_dd8582c",     option = "has 5 rows and 4 columns", value = "has 5 rows and 4 columns",     label = structure("has 5 rows and 4 columns", html = TRUE, class = c("html",     "character")), correct = FALSE, message = structure("Remember that in matrix notation, rows come first, then columns.", html = TRUE, class = c("html",     "character"))), class = c("tutorial_question_answer", "tutorial_quiz_answer")), structure(list(id = "lnr_ans_b03a27f", option = "has 20 columns but a variable number of rows and columns",     value = "has 20 columns but a variable number of rows and columns",     label = structure("has 20 columns but a variable number of rows and columns", html = TRUE, class = c("html",     "character")), correct = FALSE, message = structure("You need to re-read the material in this section.", html = TRUE, class = c("html",     "character"))), class = c("tutorial_question_answer", "tutorial_quiz_answer")), structure(list(id = "lnr_ans_fe2b151", option = "has 4 rows and 5 columns",     value = "has 4 rows and 5 columns", label = structure("has 4 rows and 5 columns", html = TRUE, class = c("html",     "character")), correct = TRUE, message = NULL), class = c("tutorial_question_answer", "tutorial_quiz_answer")), structure(list(id = "lnr_ans_ad9c24c",     option = "is a square matrix", value = "is a square matrix",     label = structure("is a square matrix", html = TRUE, class = c("html",     "character")), correct = FALSE, message = structure("A square matrix has the same number of rows as columns.", html = TRUE, class = c("html",     "character"))), class = c("tutorial_question_answer", "tutorial_quiz_answer"))), button_labels = list(submit = structure("Submit Answer", html = TRUE, class = c("html", "character")), try_again = structure("Try Again", html = TRUE, class = c("html", "character"))), messages = list(correct = structure("Correct!", html = TRUE, class = c("html", "character")), try_again = structure("Incorrect", html = TRUE, class = c("html", "character")), incorrect = structure("Incorrect", html = TRUE, class = c("html", "character")), message = NULL, post_message = NULL), ids = list(    answer = "quiz-1-1-answer", question = "quiz-1-1"), loading = structure("<strong>Loading:<\u002fstrong> \nAn order (4, 5) matrix:\n<br/><br/><br/>", html = TRUE, class = c("html", "character")), random_answer_order = TRUE, allow_retry = TRUE,     seed = 61534875.9713456, options = list()), class = c("learnr_radio", "tutorial_question")))
+</script>
+ 
+<script type="application/shiny-prerendered" data-context="server">
+learnr:::question_prerendered_chunk(structure(list(type = "learnr_radio", label = "quiz-1-2", question = structure("A column vector in matrix notation:", html = TRUE, class = c("html", "character")), answers = list(structure(list(id = "lnr_ans_7590b48",     option = "has one column and is denoted by a lowercase letter in bold",     value = "has one column and is denoted by a lowercase letter in bold",     label = structure("has one column and is denoted by a lowercase letter in bold", html = TRUE, class = c("html",     "character")), correct = TRUE, message = NULL), class = c("tutorial_question_answer", "tutorial_quiz_answer")), structure(list(id = "lnr_ans_f8afd4e",     option = "has one column and is denoted by a non-bold uppercase letter",     value = "has one column and is denoted by a non-bold uppercase letter",     label = structure("has one column and is denoted by a non-bold uppercase letter", html = TRUE, class = c("html",     "character")), correct = FALSE, message = structure("Non-bold lowercase letters, with subscripts, are used by convention to refer to elements (cells) in a matrix. Row- or column-vectors are referred to using a lowercase letter <strong>in bold<\u002fstrong>.", html = TRUE, class = c("html",     "character"))), class = c("tutorial_question_answer", "tutorial_quiz_answer")), structure(list(id = "lnr_ans_54c12d8", option = "has the same number of rows as columns",     value = "has the same number of rows as columns", label = structure("has the same number of rows as columns", html = TRUE, class = c("html",     "character")), correct = FALSE, message = structure("You need to re-read the material in this section.", html = TRUE, class = c("html",     "character"))), class = c("tutorial_question_answer", "tutorial_quiz_answer")), structure(list(id = "lnr_ans_fc21b98", option = "is the same as a vector in $\\textsf{R}$",     value = "is the same as a vector in $\\textsf{R}$", label = structure("is the same as a vector in \\(\\textsf{R}\\)", html = TRUE, class = c("html",     "character")), correct = FALSE, message = structure("Not quite! a column- or row-vector in matrix notation is still a matrix, just with only one column or one row respectively. It still behaves like a matrix, whereas in \\(\\textsf{R}\\), vectors behave differently to matrices in several key ways.", html = TRUE, class = c("html",     "character"))), class = c("tutorial_question_answer", "tutorial_quiz_answer"))), button_labels = list(submit = structure("Submit Answer", html = TRUE, class = c("html", "character")), try_again = structure("Try Again", html = TRUE, class = c("html", "character"))), messages = list(correct = structure("Correct!", html = TRUE, class = c("html", "character")), try_again = structure("Incorrect", html = TRUE, class = c("html", "character")), incorrect = structure("Incorrect", html = TRUE, class = c("html", "character")), message = NULL, post_message = NULL), ids = list(    answer = "quiz-1-2-answer", question = "quiz-1-2"), loading = structure("<strong>Loading:<\u002fstrong> \nA column vector in matrix notation:\n<br/><br/><br/>", html = TRUE, class = c("html", "character")), random_answer_order = TRUE, allow_retry = TRUE,     seed = 2073653693.03438, options = list()), class = c("learnr_radio", "tutorial_question")))
+</script>
+ 
+<script type="application/shiny-prerendered" data-context="server">
+`tutorial-exercise-matrix-addition-1-result` <- learnr:::setup_exercise_handler(reactive(req(input$`tutorial-exercise-matrix-addition-1-code-editor`)), session)
+output$`tutorial-exercise-matrix-addition-1-output` <- renderUI({
+  `tutorial-exercise-matrix-addition-1-result`()
+})
+</script>
+ 
+<script type="application/shiny-prerendered" data-context="server">
+`tutorial-exercise-matrix-addition-activity-result` <- learnr:::setup_exercise_handler(reactive(req(input$`tutorial-exercise-matrix-addition-activity-code-editor`)), session)
+output$`tutorial-exercise-matrix-addition-activity-output` <- renderUI({
+  `tutorial-exercise-matrix-addition-activity-result`()
+})
+</script>
+ 
+<script type="application/shiny-prerendered" data-context="server">
+`tutorial-exercise-transpose-matrices-a-result` <- learnr:::setup_exercise_handler(reactive(req(input$`tutorial-exercise-transpose-matrices-a-code-editor`)), session)
+output$`tutorial-exercise-transpose-matrices-a-output` <- renderUI({
+  `tutorial-exercise-transpose-matrices-a-result`()
+})
+</script>
+ 
+<script type="application/shiny-prerendered" data-context="server">
+`tutorial-exercise-transpose-matrices-b-result` <- learnr:::setup_exercise_handler(reactive(req(input$`tutorial-exercise-transpose-matrices-b-code-editor`)), session)
+output$`tutorial-exercise-transpose-matrices-b-output` <- renderUI({
+  `tutorial-exercise-transpose-matrices-b-result`()
+})
+</script>
+ 
+<script type="application/shiny-prerendered" data-context="server">
+learnr:::question_prerendered_chunk(structure(list(type = "learnr_radio", label = "question-2", question = structure("In matrix notation \\(\\mathbf{A^\\prime}\\):", html = TRUE, class = c("html", "character")), answers = list(structure(list(id = "lnr_ans_698cf21",     option = "denotes the transpose of matrix **A**", value = "denotes the transpose of matrix **A**",     label = structure("denotes the transpose of matrix <strong>A<\u002fstrong>", html = TRUE, class = c("html",     "character")), correct = TRUE, message = NULL), class = c("tutorial_question_answer", "tutorial_quiz_answer")), structure(list(id = "lnr_ans_366ad52",     option = "denotes the inverse of matrix **A**", value = "denotes the inverse of matrix **A**",     label = structure("denotes the inverse of matrix <strong>A<\u002fstrong>", html = TRUE, class = c("html",     "character")), correct = FALSE, message = NULL), class = c("tutorial_question_answer", "tutorial_quiz_answer")), structure(list(id = "lnr_ans_ef75bb",     option = "denotes the determinant of matrix **A**", value = "denotes the determinant of matrix **A**",     label = structure("denotes the determinant of matrix <strong>A<\u002fstrong>", html = TRUE, class = c("html",     "character")), correct = FALSE, message = NULL), class = c("tutorial_question_answer", "tutorial_quiz_answer"))), button_labels = list(submit = structure("Submit Answer", html = TRUE, class = c("html", "character")), try_again = structure("Try Again", html = TRUE, class = c("html", "character"))), messages = list(correct = structure("Correct!", html = TRUE, class = c("html", "character")), try_again = structure("Incorrect", html = TRUE, class = c("html", "character")), incorrect = structure("Incorrect", html = TRUE, class = c("html", "character")), message = NULL, post_message = NULL), ids = list(    answer = "question-2-answer", question = "question-2"), loading = structure("<strong>Loading:<\u002fstrong> \nIn matrix notation \\(\\mathbf{A^\\prime}\\):\n<br/><br/><br/>", html = TRUE, class = c("html", "character")), random_answer_order = TRUE, allow_retry = TRUE,     seed = 77576975.4638754, options = list()), class = c("learnr_radio", "tutorial_question")))
+</script>
+ 
+<script type="application/shiny-prerendered" data-context="server">
+`tutorial-exercise-matrix-transpose-activity-result` <- learnr:::setup_exercise_handler(reactive(req(input$`tutorial-exercise-matrix-transpose-activity-code-editor`)), session)
+output$`tutorial-exercise-matrix-transpose-activity-output` <- renderUI({
+  `tutorial-exercise-matrix-transpose-activity-result`()
+})
+</script>
+ 
+<script type="application/shiny-prerendered" data-context="server">
+`tutorial-exercise-scalar-multiply-matrices-a-result` <- learnr:::setup_exercise_handler(reactive(req(input$`tutorial-exercise-scalar-multiply-matrices-a-code-editor`)), session)
+output$`tutorial-exercise-scalar-multiply-matrices-a-output` <- renderUI({
+  `tutorial-exercise-scalar-multiply-matrices-a-result`()
+})
+</script>
+ 
+<script type="application/shiny-prerendered" data-context="server">
+`tutorial-exercise-multiply-matrices-a-result` <- learnr:::setup_exercise_handler(reactive(req(input$`tutorial-exercise-multiply-matrices-a-code-editor`)), session)
+output$`tutorial-exercise-multiply-matrices-a-output` <- renderUI({
+  `tutorial-exercise-multiply-matrices-a-result`()
+})
+</script>
+ 
+<script type="application/shiny-prerendered" data-context="server">
+`tutorial-exercise-multiply-matrices-identities-a-result` <- learnr:::setup_exercise_handler(reactive(req(input$`tutorial-exercise-multiply-matrices-identities-a-code-editor`)), session)
+output$`tutorial-exercise-multiply-matrices-identities-a-output` <- renderUI({
+  `tutorial-exercise-multiply-matrices-identities-a-result`()
+})
+</script>
+ 
+<script type="application/shiny-prerendered" data-context="server">
+learnr:::question_prerendered_chunk(structure(list(type = "learnr_radio", label = "question-3", question = structure("In matrix multiplication of two matrices \\(\\mathbf{A}\\) and \\(\\mathbf{B}\\):", html = TRUE, class = c("html", "character")), answers = list(structure(list(id = "lnr_ans_80ebb73",     option = "each row of **A** is multiplied by each column of **B**",     value = "each row of **A** is multiplied by each column of **B**",     label = structure("each row of <strong>A<\u002fstrong> is multiplied by each column of <strong>B<\u002fstrong>", html = TRUE, class = c("html",     "character")), correct = TRUE, message = NULL), class = c("tutorial_question_answer", "tutorial_quiz_answer")), structure(list(id = "lnr_ans_845bd52",     option = "each column of **A** is multiplied by each column of **B**",     value = "each column of **A** is multiplied by each column of **B**",     label = structure("each column of <strong>A<\u002fstrong> is multiplied by each column of <strong>B<\u002fstrong>", html = TRUE, class = c("html",     "character")), correct = FALSE, message = NULL), class = c("tutorial_question_answer", "tutorial_quiz_answer")), structure(list(id = "lnr_ans_6032f86",     option = "each column of **A** is multiplied by each row of **B**",     value = "each column of **A** is multiplied by each row of **B**",     label = structure("each column of <strong>A<\u002fstrong> is multiplied by each row of <strong>B<\u002fstrong>", html = TRUE, class = c("html",     "character")), correct = FALSE, message = NULL), class = c("tutorial_question_answer", "tutorial_quiz_answer")), structure(list(id = "lnr_ans_6959380",     option = "each element of **A** is multiplied by the corresponding element of **B**",     value = "each element of **A** is multiplied by the corresponding element of **B**",     label = structure("each element of <strong>A<\u002fstrong> is multiplied by the corresponding element of <strong>B<\u002fstrong>", html = TRUE, class = c("html",     "character")), correct = FALSE, message = NULL), class = c("tutorial_question_answer", "tutorial_quiz_answer"))), button_labels = list(submit = structure("Submit Answer", html = TRUE, class = c("html", "character")), try_again = structure("Try Again", html = TRUE, class = c("html", "character"))), messages = list(correct = structure("Correct!", html = TRUE, class = c("html", "character")), try_again = structure("Incorrect. You need to re-read the material in this section.", html = TRUE, class = c("html", "character")), incorrect = structure("Incorrect. You need to re-read the material in this section.", html = TRUE, class = c("html", "character")), message = NULL, post_message = NULL), ids = list(    answer = "question-3-answer", question = "question-3"), loading = structure("<strong>Loading:<\u002fstrong> \nIn matrix multiplication of two matrices \\(\\mathbf{A}\\) and \\(\\mathbf{B}\\):\n<br/><br/><br/>", html = TRUE, class = c("html", "character")), random_answer_order = TRUE, allow_retry = TRUE,     seed = 770288690.141306, options = list()), class = c("learnr_radio", "tutorial_question")))
+</script>
+ 
+<script type="application/shiny-prerendered" data-context="server">
+`tutorial-exercise-multiply-column-vectors-result` <- learnr:::setup_exercise_handler(reactive(req(input$`tutorial-exercise-multiply-column-vectors-code-editor`)), session)
+output$`tutorial-exercise-multiply-column-vectors-output` <- renderUI({
+  `tutorial-exercise-multiply-column-vectors-result`()
+})
+</script>
+ 
+<script type="application/shiny-prerendered" data-context="server">
+learnr:::question_prerendered_chunk(structure(list(type = "learnr_checkbox", label = "question-4",     question = structure("Choose all that are correct:", html = TRUE, class = c("html",     "character")), answers = list(structure(list(id = "lnr_ans_aa39808",         option = "The identity matrix does not need to be square as long as it has ones on its diagonal and zeroes elsewhere",         value = "The identity matrix does not need to be square as long as it has ones on its diagonal and zeroes elsewhere",         label = structure("The identity matrix does not need to be square as long as it has ones on its diagonal and zeroes elsewhere", html = TRUE, class = c("html",         "character")), correct = FALSE, message = NULL), class = c("tutorial_question_answer",     "tutorial_quiz_answer")), structure(list(id = "lnr_ans_a0ecca0",         option = "If a square matrix **A** is multiplied by the corresponding identity matrix of the same order, the result equals **A**",         value = "If a square matrix **A** is multiplied by the corresponding identity matrix of the same order, the result equals **A**",         label = structure("If a square matrix <strong>A<\u002fstrong> is multiplied by the corresponding identity matrix of the same order, the result equals <strong>A<\u002fstrong>", html = TRUE, class = c("html",         "character")), correct = TRUE, message = NULL), class = c("tutorial_question_answer",     "tutorial_quiz_answer")), structure(list(id = "lnr_ans_778d96d",         option = "The null matrix is just all ones", value = "The null matrix is just all ones",         label = structure("The null matrix is just all ones", html = TRUE, class = c("html",         "character")), correct = FALSE, message = NULL), class = c("tutorial_question_answer",     "tutorial_quiz_answer")), structure(list(id = "lnr_ans_8a6654d",         option = "The identity matrix (any identity matrix, of any order) is commutative, associative, and distributive with respect to multiplication",         value = "The identity matrix (any identity matrix, of any order) is commutative, associative, and distributive with respect to multiplication",         label = structure("The identity matrix (any identity matrix, of any order) is commutative, associative, and distributive with respect to multiplication", html = TRUE, class = c("html",         "character")), correct = TRUE, message = NULL), class = c("tutorial_question_answer",     "tutorial_quiz_answer"))), button_labels = list(submit = structure("Submit Answer", html = TRUE, class = c("html",     "character")), try_again = structure("Try Again", html = TRUE, class = c("html",     "character"))), messages = list(correct = structure("Correct!", html = TRUE, class = c("html",     "character")), try_again = structure("Incorrect. You need to re-read the material in this section.", html = TRUE, class = c("html",     "character")), incorrect = structure("Incorrect. You need to re-read the material in this section.", html = TRUE, class = c("html",     "character")), message = NULL, post_message = NULL), ids = list(        answer = "question-4-answer", question = "question-4"),     loading = structure("<strong>Loading:<\u002fstrong> \nChoose all that are correct:\n<br/><br/><br/>", html = TRUE, class = c("html",     "character")), random_answer_order = TRUE, allow_retry = TRUE,     seed = 320776980.850627, options = list()), class = c("learnr_checkbox", "tutorial_question")))
+</script>
+ 
+<script type="application/shiny-prerendered" data-context="server">
+`tutorial-exercise-compute-determinant-b-result` <- learnr:::setup_exercise_handler(reactive(req(input$`tutorial-exercise-compute-determinant-b-code-editor`)), session)
+output$`tutorial-exercise-compute-determinant-b-output` <- renderUI({
+  `tutorial-exercise-compute-determinant-b-result`()
+})
+</script>
+ 
+<script type="application/shiny-prerendered" data-context="server">
+learnr:::question_prerendered_chunk(structure(list(type = "learnr_checkbox", label = "question-5",     question = structure("Choose all that are correct:", html = TRUE, class = c("html",     "character")), answers = list(structure(list(id = "lnr_ans_864652c",         option = "Determinants are defined only for square matrices, and are themselves a matrix.",         value = "Determinants are defined only for square matrices, and are themselves a matrix.",         label = structure("Determinants are defined only for square matrices, and are themselves a matrix.", html = TRUE, class = c("html",         "character")), correct = FALSE, message = structure("Yes, determinants are defined only for square matrices, but they are scalars (a single value), not a matrix.", html = TRUE, class = c("html",         "character"))), class = c("tutorial_question_answer",     "tutorial_quiz_answer")), structure(list(id = "lnr_ans_a95bace",         option = "The `det()` function can be used in R to calculate the determinant of a matrix",         value = "The `det()` function can be used in R to calculate the determinant of a matrix",         label = structure("The <code>det()<\u002fcode> function can be used in R to calculate the determinant of a matrix", html = TRUE, class = c("html",         "character")), correct = TRUE, message = NULL), class = c("tutorial_question_answer",     "tutorial_quiz_answer")), structure(list(id = "lnr_ans_7d0005f",         option = "The determinant of a matrix is also sometimes called the minor of that matrix.",         value = "The determinant of a matrix is also sometimes called the minor of that matrix.",         label = structure("The determinant of a matrix is also sometimes called the minor of that matrix.", html = TRUE, class = c("html",         "character")), correct = FALSE, message = structure("No, the matrix formed after deleting row <em>r<\u002fem> and column <em>s<\u002fem> of the original matrix is sometimes called the minor of that matrix.", html = TRUE, class = c("html",         "character"))), class = c("tutorial_question_answer",     "tutorial_quiz_answer")), structure(list(id = "lnr_ans_d360f4e",         option = "Calculating the determinant of a large matrix by hand can be extremely tedious",         value = "Calculating the determinant of a large matrix by hand can be extremely tedious",         label = structure("Calculating the determinant of a large matrix by hand can be extremely tedious", html = TRUE, class = c("html",         "character")), correct = TRUE, message = NULL), class = c("tutorial_question_answer",     "tutorial_quiz_answer"))), button_labels = list(submit = structure("Submit Answer", html = TRUE, class = c("html",     "character")), try_again = structure("Try Again", html = TRUE, class = c("html",     "character"))), messages = list(correct = structure("Correct!", html = TRUE, class = c("html",     "character")), try_again = structure("Incorrect", html = TRUE, class = c("html",     "character")), incorrect = structure("Incorrect", html = TRUE, class = c("html",     "character")), message = NULL, post_message = NULL), ids = list(        answer = "question-5-answer", question = "question-5"),     loading = structure("<strong>Loading:<\u002fstrong> \nChoose all that are correct:\n<br/><br/><br/>", html = TRUE, class = c("html",     "character")), random_answer_order = TRUE, allow_retry = TRUE,     seed = 347602314.338135, options = list()), class = c("learnr_checkbox", "tutorial_question")))
+</script>
+ 
+<script type="application/shiny-prerendered" data-context="server">
+`tutorial-exercise-compute-inverse-c-in-steps-result` <- learnr:::setup_exercise_handler(reactive(req(input$`tutorial-exercise-compute-inverse-c-in-steps-code-editor`)), session)
+output$`tutorial-exercise-compute-inverse-c-in-steps-output` <- renderUI({
+  `tutorial-exercise-compute-inverse-c-in-steps-result`()
+})
+</script>
+ 
+<script type="application/shiny-prerendered" data-context="server">
+`tutorial-exercise-compute-inverse-b-in-steps-result` <- learnr:::setup_exercise_handler(reactive(req(input$`tutorial-exercise-compute-inverse-b-in-steps-code-editor`)), session)
+output$`tutorial-exercise-compute-inverse-b-in-steps-output` <- renderUI({
+  `tutorial-exercise-compute-inverse-b-in-steps-result`()
+})
+</script>
+ 
+<script type="application/shiny-prerendered" data-context="server">
+`tutorial-exercise-round-inverse-b-result` <- learnr:::setup_exercise_handler(reactive(req(input$`tutorial-exercise-round-inverse-b-code-editor`)), session)
+output$`tutorial-exercise-round-inverse-b-output` <- renderUI({
+  `tutorial-exercise-round-inverse-b-result`()
+})
+</script>
+ 
+<script type="application/shiny-prerendered" data-context="server">
+`tutorial-exercise-diagonal-matrices-a-result` <- learnr:::setup_exercise_handler(reactive(req(input$`tutorial-exercise-diagonal-matrices-a-code-editor`)), session)
+output$`tutorial-exercise-diagonal-matrices-a-output` <- renderUI({
+  `tutorial-exercise-diagonal-matrices-a-result`()
+})
+</script>
+ 
+<script type="application/shiny-prerendered" data-context="server">
+`tutorial-exercise-check-identity-result` <- learnr:::setup_exercise_handler(reactive(req(input$`tutorial-exercise-check-identity-code-editor`)), session)
+output$`tutorial-exercise-check-identity-output` <- renderUI({
+  `tutorial-exercise-check-identity-result`()
+})
+</script>
+ 
+<script type="application/shiny-prerendered" data-context="server">
+`tutorial-exercise-compute-rank-a-result` <- learnr:::setup_exercise_handler(reactive(req(input$`tutorial-exercise-compute-rank-a-code-editor`)), session)
+output$`tutorial-exercise-compute-rank-a-output` <- renderUI({
+  `tutorial-exercise-compute-rank-a-result`()
+})
+</script>
+ 
+<script type="application/shiny-prerendered" data-context="server">
+`tutorial-exercise-invertible-or-not-result` <- learnr:::setup_exercise_handler(reactive(req(input$`tutorial-exercise-invertible-or-not-code-editor`)), session)
+output$`tutorial-exercise-invertible-or-not-output` <- renderUI({
+  `tutorial-exercise-invertible-or-not-result`()
+})
+</script>
+ 
+<script type="application/shiny-prerendered" data-context="server">
+`tutorial-exercise-does-solve-work-result` <- learnr:::setup_exercise_handler(reactive(req(input$`tutorial-exercise-does-solve-work-code-editor`)), session)
+output$`tutorial-exercise-does-solve-work-output` <- renderUI({
+  `tutorial-exercise-does-solve-work-result`()
+})
+</script>
+ 
+<script type="application/shiny-prerendered" data-context="server">
+learnr:::question_prerendered_chunk(structure(list(type = "learnr_radio", label = "quiz-final-1",     question = structure("Is the ability to use matrix algebra to solve a system of simultaneous equations extremely cool?", html = TRUE, class = c("html",     "character")), answers = list(structure(list(id = "lnr_ans_7cd049d",         option = "Yes, it is.", value = "Yes, it is.", label = structure("Yes, it is.", html = TRUE, class = c("html",         "character")), correct = TRUE, message = NULL), class = c("tutorial_question_answer",     "tutorial_quiz_answer")), structure(list(id = "lnr_ans_39cba03",         option = "No, not really.", value = "No, not really.",         label = structure("No, not really.", html = TRUE, class = c("html",         "character")), correct = FALSE, message = NULL), class = c("tutorial_question_answer",     "tutorial_quiz_answer"))), button_labels = list(submit = structure("Submit Answer", html = TRUE, class = c("html",     "character")), try_again = structure("Try Again", html = TRUE, class = c("html",     "character"))), messages = list(correct = structure("Correct!", html = TRUE, class = c("html",     "character")), try_again = structure("Incorrect", html = TRUE, class = c("html",     "character")), incorrect = structure("Incorrect", html = TRUE, class = c("html",     "character")), message = NULL, post_message = NULL), ids = list(        answer = "quiz-final-1-answer", question = "quiz-final-1"),     loading = structure("<strong>Loading:<\u002fstrong> \nIs the ability to use matrix algebra to solve a system of simultaneous equations extremely cool?\n<br/><br/><br/>", html = TRUE, class = c("html",     "character")), random_answer_order = TRUE, allow_retry = TRUE,     seed = 1528292354.78833, options = list()), class = c("learnr_radio", "tutorial_question")))
+</script>
+ <!--html_preserve-->
+<script type="application/shiny-prerendered" data-context="dependencies">
+{"type":"list","attributes":{},"value":[{"type":"list","attributes":{"names":{"type":"character","attributes":{},"value":["name","version","src","meta","script","stylesheet","head","attachment","package","all_files"]},"class":{"type":"character","attributes":{},"value":["html_dependency"]}},"value":[{"type":"character","attributes":{},"value":["jquery"]},{"type":"character","attributes":{},"value":["3.6.0"]},{"type":"list","attributes":{"names":{"type":"character","attributes":{},"value":["file"]}},"value":[{"type":"character","attributes":{},"value":["lib/3.6.0"]}]},{"type":"NULL"},{"type":"character","attributes":{},"value":["jquery-3.6.0.min.js"]},{"type":"NULL"},{"type":"NULL"},{"type":"NULL"},{"type":"character","attributes":{},"value":["jquerylib"]},{"type":"logical","attributes":{},"value":[true]}]},{"type":"list","attributes":{"names":{"type":"character","attributes":{},"value":["name","version","src","meta","script","stylesheet","head","attachment","package","all_files","pkgVersion"]},"class":{"type":"character","attributes":{},"value":["html_dependency"]}},"value":[{"type":"character","attributes":{},"value":["bootstrap"]},{"type":"character","attributes":{},"value":["3.3.5"]},{"type":"list","attributes":{"names":{"type":"character","attributes":{},"value":["file"]}},"value":[{"type":"character","attributes":{},"value":["rmd/h/bootstrap"]}]},{"type":"list","attributes":{"names":{"type":"character","attributes":{},"value":["viewport"]}},"value":[{"type":"character","attributes":{},"value":["width=device-width, initial-scale=1"]}]},{"type":"character","attributes":{},"value":["js/bootstrap.min.js","shim/html5shiv.min.js","shim/respond.min.js"]},{"type":"character","attributes":{},"value":["css/cerulean.min.css"]},{"type":"character","attributes":{},"value":["<style>h1 {font-size: 34px;}\n       h1.title {font-size: 38px;}\n       h2 {font-size: 30px;}\n       h3 {font-size: 24px;}\n       h4 {font-size: 18px;}\n       h5 {font-size: 16px;}\n       h6 {font-size: 12px;}\n       code {color: inherit; background-color: rgba(0, 0, 0, 0.04);}\n       pre:not([class]) { background-color: white }<\/style>"]},{"type":"NULL"},{"type":"character","attributes":{},"value":["rmarkdown"]},{"type":"logical","attributes":{},"value":[true]},{"type":"character","attributes":{},"value":["2.11"]}]},{"type":"list","attributes":{"names":{"type":"character","attributes":{},"value":["name","version","src","meta","script","stylesheet","head","attachment","package","all_files","pkgVersion"]},"class":{"type":"character","attributes":{},"value":["html_dependency"]}},"value":[{"type":"character","attributes":{},"value":["pagedtable"]},{"type":"character","attributes":{},"value":["1.1"]},{"type":"list","attributes":{"names":{"type":"character","attributes":{},"value":["file"]}},"value":[{"type":"character","attributes":{},"value":["rmd/h/pagedtable-1.1"]}]},{"type":"NULL"},{"type":"character","attributes":{},"value":["js/pagedtable.js"]},{"type":"character","attributes":{},"value":["css/pagedtable.css"]},{"type":"NULL"},{"type":"NULL"},{"type":"character","attributes":{},"value":["rmarkdown"]},{"type":"logical","attributes":{},"value":[true]},{"type":"character","attributes":{},"value":["2.11"]}]},{"type":"list","attributes":{"names":{"type":"character","attributes":{},"value":["name","version","src","meta","script","stylesheet","head","attachment","package","all_files","pkgVersion"]},"class":{"type":"character","attributes":{},"value":["html_dependency"]}},"value":[{"type":"character","attributes":{},"value":["highlightjs"]},{"type":"character","attributes":{},"value":["9.12.0"]},{"type":"list","attributes":{"names":{"type":"character","attributes":{},"value":["file"]}},"value":[{"type":"character","attributes":{},"value":["rmd/h/highlightjs"]}]},{"type":"NULL"},{"type":"character","attributes":{},"value":["highlight.js"]},{"type":"character","attributes":{},"value":["textmate.css"]},{"type":"NULL"},{"type":"NULL"},{"type":"character","attributes":{},"value":["rmarkdown"]},{"type":"logical","attributes":{},"value":[true]},{"type":"character","attributes":{},"value":["2.11"]}]},{"type":"list","attributes":{"names":{"type":"character","attributes":{},"value":["name","version","src","meta","script","stylesheet","head","attachment","package","all_files","pkgVersion"]},"class":{"type":"character","attributes":{},"value":["html_dependency"]}},"value":[{"type":"character","attributes":{},"value":["tutorial"]},{"type":"character","attributes":{},"value":["0.10.1"]},{"type":"list","attributes":{"names":{"type":"character","attributes":{},"value":["file"]}},"value":[{"type":"character","attributes":{},"value":["lib/tutorial"]}]},{"type":"NULL"},{"type":"character","attributes":{},"value":["tutorial.js"]},{"type":"character","attributes":{},"value":["tutorial.css"]},{"type":"NULL"},{"type":"NULL"},{"type":"character","attributes":{},"value":["learnr"]},{"type":"logical","attributes":{},"value":[true]},{"type":"character","attributes":{},"value":["0.10.1"]}]},{"type":"list","attributes":{"names":{"type":"character","attributes":{},"value":["name","version","src","meta","script","stylesheet","head","attachment","package","all_files","pkgVersion"]},"class":{"type":"character","attributes":{},"value":["html_dependency"]}},"value":[{"type":"character","attributes":{},"value":["tutorial-autocompletion"]},{"type":"character","attributes":{},"value":["0.10.1"]},{"type":"list","attributes":{"names":{"type":"character","attributes":{},"value":["file"]}},"value":[{"type":"character","attributes":{},"value":["lib/tutorial"]}]},{"type":"NULL"},{"type":"character","attributes":{},"value":["tutorial-autocompletion.js"]},{"type":"NULL"},{"type":"NULL"},{"type":"NULL"},{"type":"character","attributes":{},"value":["learnr"]},{"type":"logical","attributes":{},"value":[true]},{"type":"character","attributes":{},"value":["0.10.1"]}]},{"type":"list","attributes":{"names":{"type":"character","attributes":{},"value":["name","version","src","meta","script","stylesheet","head","attachment","package","all_files","pkgVersion"]},"class":{"type":"character","attributes":{},"value":["html_dependency"]}},"value":[{"type":"character","attributes":{},"value":["tutorial-diagnostics"]},{"type":"character","attributes":{},"value":["0.10.1"]},{"type":"list","attributes":{"names":{"type":"character","attributes":{},"value":["file"]}},"value":[{"type":"character","attributes":{},"value":["lib/tutorial"]}]},{"type":"NULL"},{"type":"character","attributes":{},"value":["tutorial-diagnostics.js"]},{"type":"NULL"},{"type":"NULL"},{"type":"NULL"},{"type":"character","attributes":{},"value":["learnr"]},{"type":"logical","attributes":{},"value":[true]},{"type":"character","attributes":{},"value":["0.10.1"]}]},{"type":"list","attributes":{"names":{"type":"character","attributes":{},"value":["name","version","src","meta","script","stylesheet","head","attachment","package","all_files","pkgVersion"]},"class":{"type":"character","attributes":{},"value":["html_dependency"]}},"value":[{"type":"character","attributes":{},"value":["tutorial-format"]},{"type":"character","attributes":{},"value":["0.10.1"]},{"type":"list","attributes":{"names":{"type":"character","attributes":{},"value":["file"]}},"value":[{"type":"character","attributes":{},"value":["rmarkdown/templates/tutorial/resources"]}]},{"type":"NULL"},{"type":"character","attributes":{},"value":["tutorial-format.js"]},{"type":"character","attributes":{},"value":["tutorial-format.css","rstudio-theme.css"]},{"type":"NULL"},{"type":"NULL"},{"type":"character","attributes":{},"value":["learnr"]},{"type":"logical","attributes":{},"value":[true]},{"type":"character","attributes":{},"value":["0.10.1"]}]},{"type":"list","attributes":{"names":{"type":"character","attributes":{},"value":["name","version","src","meta","script","stylesheet","head","attachment","package","all_files"]},"class":{"type":"character","attributes":{},"value":["html_dependency"]}},"value":[{"type":"character","attributes":{},"value":["jquery"]},{"type":"character","attributes":{},"value":["3.6.0"]},{"type":"list","attributes":{"names":{"type":"character","attributes":{},"value":["file"]}},"value":[{"type":"character","attributes":{},"value":["lib/3.6.0"]}]},{"type":"NULL"},{"type":"character","attributes":{},"value":["jquery-3.6.0.min.js"]},{"type":"NULL"},{"type":"NULL"},{"type":"NULL"},{"type":"character","attributes":{},"value":["jquerylib"]},{"type":"logical","attributes":{},"value":[true]}]},{"type":"list","attributes":{"names":{"type":"character","attributes":{},"value":["name","version","src","meta","script","stylesheet","head","attachment","package","all_files","pkgVersion"]},"class":{"type":"character","attributes":{},"value":["html_dependency"]}},"value":[{"type":"character","attributes":{},"value":["navigation"]},{"type":"character","attributes":{},"value":["1.1"]},{"type":"list","attributes":{"names":{"type":"character","attributes":{},"value":["file"]}},"value":[{"type":"character","attributes":{},"value":["rmd/h/navigation-1.1"]}]},{"type":"NULL"},{"type":"character","attributes":{},"value":["tabsets.js"]},{"type":"NULL"},{"type":"NULL"},{"type":"NULL"},{"type":"character","attributes":{},"value":["rmarkdown"]},{"type":"logical","attributes":{},"value":[true]},{"type":"character","attributes":{},"value":["2.11"]}]},{"type":"list","attributes":{"names":{"type":"character","attributes":{},"value":["name","version","src","meta","script","stylesheet","head","attachment","package","all_files","pkgVersion"]},"class":{"type":"character","attributes":{},"value":["html_dependency"]}},"value":[{"type":"character","attributes":{},"value":["highlightjs"]},{"type":"character","attributes":{},"value":["9.12.0"]},{"type":"list","attributes":{"names":{"type":"character","attributes":{},"value":["file"]}},"value":[{"type":"character","attributes":{},"value":["rmd/h/highlightjs"]}]},{"type":"NULL"},{"type":"character","attributes":{},"value":["highlight.js"]},{"type":"character","attributes":{},"value":["default.css"]},{"type":"NULL"},{"type":"NULL"},{"type":"character","attributes":{},"value":["rmarkdown"]},{"type":"logical","attributes":{},"value":[true]},{"type":"character","attributes":{},"value":["2.11"]}]},{"type":"list","attributes":{"names":{"type":"character","attributes":{},"value":["name","version","src","meta","script","stylesheet","head","attachment","package","all_files"]},"class":{"type":"character","attributes":{},"value":["html_dependency"]}},"value":[{"type":"character","attributes":{},"value":["jquery"]},{"type":"character","attributes":{},"value":["3.6.0"]},{"type":"list","attributes":{"names":{"type":"character","attributes":{},"value":["file"]}},"value":[{"type":"character","attributes":{},"value":["lib/3.6.0"]}]},{"type":"NULL"},{"type":"character","attributes":{},"value":["jquery-3.6.0.min.js"]},{"type":"NULL"},{"type":"NULL"},{"type":"NULL"},{"type":"character","attributes":{},"value":["jquerylib"]},{"type":"logical","attributes":{},"value":[true]}]},{"type":"list","attributes":{"names":{"type":"character","attributes":{},"value":["name","version","src","meta","script","stylesheet","head","attachment","package","all_files","pkgVersion"]},"class":{"type":"character","attributes":{},"value":["html_dependency"]}},"value":[{"type":"character","attributes":{},"value":["font-awesome"]},{"type":"character","attributes":{},"value":["5.1.0"]},{"type":"list","attributes":{"names":{"type":"character","attributes":{},"value":["file"]}},"value":[{"type":"character","attributes":{},"value":["rmd/h/fontawesome"]}]},{"type":"NULL"},{"type":"NULL"},{"type":"character","attributes":{},"value":["css/all.css","css/v4-shims.css"]},{"type":"NULL"},{"type":"NULL"},{"type":"character","attributes":{},"value":["rmarkdown"]},{"type":"logical","attributes":{},"value":[true]},{"type":"character","attributes":{},"value":["2.11"]}]},{"type":"list","attributes":{"names":{"type":"character","attributes":{},"value":["name","version","src","meta","script","stylesheet","head","attachment","package","all_files","pkgVersion"]},"class":{"type":"character","attributes":{},"value":["html_dependency"]}},"value":[{"type":"character","attributes":{},"value":["bootbox"]},{"type":"character","attributes":{},"value":["4.4.0"]},{"type":"list","attributes":{"names":{"type":"character","attributes":{},"value":["file"]}},"value":[{"type":"character","attributes":{},"value":["lib/bootbox"]}]},{"type":"NULL"},{"type":"character","attributes":{},"value":["bootbox.min.js"]},{"type":"NULL"},{"type":"NULL"},{"type":"NULL"},{"type":"character","attributes":{},"value":["learnr"]},{"type":"logical","attributes":{},"value":[true]},{"type":"character","attributes":{},"value":["0.10.1"]}]},{"type":"list","attributes":{"names":{"type":"character","attributes":{},"value":["name","version","src","meta","script","stylesheet","head","attachment","package","all_files","pkgVersion"]},"class":{"type":"character","attributes":{},"value":["html_dependency"]}},"value":[{"type":"character","attributes":{},"value":["idb-keyvalue"]},{"type":"character","attributes":{},"value":["3.2.0"]},{"type":"list","attributes":{"names":{"type":"character","attributes":{},"value":["file"]}},"value":[{"type":"character","attributes":{},"value":["lib/idb-keyval"]}]},{"type":"NULL"},{"type":"character","attributes":{},"value":["idb-keyval-iife-compat.min.js"]},{"type":"NULL"},{"type":"NULL"},{"type":"NULL"},{"type":"character","attributes":{},"value":["learnr"]},{"type":"logical","attributes":{},"value":[false]},{"type":"character","attributes":{},"value":["0.10.1"]}]},{"type":"list","attributes":{"names":{"type":"character","attributes":{},"value":["name","version","src","meta","script","stylesheet","head","attachment","package","all_files","pkgVersion"]},"class":{"type":"character","attributes":{},"value":["html_dependency"]}},"value":[{"type":"character","attributes":{},"value":["tutorial"]},{"type":"character","attributes":{},"value":["0.10.1"]},{"type":"list","attributes":{"names":{"type":"character","attributes":{},"value":["file"]}},"value":[{"type":"character","attributes":{},"value":["lib/tutorial"]}]},{"type":"NULL"},{"type":"character","attributes":{},"value":["tutorial.js"]},{"type":"character","attributes":{},"value":["tutorial.css"]},{"type":"NULL"},{"type":"NULL"},{"type":"character","attributes":{},"value":["learnr"]},{"type":"logical","attributes":{},"value":[true]},{"type":"character","attributes":{},"value":["0.10.1"]}]},{"type":"list","attributes":{"names":{"type":"character","attributes":{},"value":["name","version","src","meta","script","stylesheet","head","attachment","package","all_files","pkgVersion"]},"class":{"type":"character","attributes":{},"value":["html_dependency"]}},"value":[{"type":"character","attributes":{},"value":["tutorial-autocompletion"]},{"type":"character","attributes":{},"value":["0.10.1"]},{"type":"list","attributes":{"names":{"type":"character","attributes":{},"value":["file"]}},"value":[{"type":"character","attributes":{},"value":["lib/tutorial"]}]},{"type":"NULL"},{"type":"character","attributes":{},"value":["tutorial-autocompletion.js"]},{"type":"NULL"},{"type":"NULL"},{"type":"NULL"},{"type":"character","attributes":{},"value":["learnr"]},{"type":"logical","attributes":{},"value":[true]},{"type":"character","attributes":{},"value":["0.10.1"]}]},{"type":"list","attributes":{"names":{"type":"character","attributes":{},"value":["name","version","src","meta","script","stylesheet","head","attachment","package","all_files","pkgVersion"]},"class":{"type":"character","attributes":{},"value":["html_dependency"]}},"value":[{"type":"character","attributes":{},"value":["tutorial-diagnostics"]},{"type":"character","attributes":{},"value":["0.10.1"]},{"type":"list","attributes":{"names":{"type":"character","attributes":{},"value":["file"]}},"value":[{"type":"character","attributes":{},"value":["lib/tutorial"]}]},{"type":"NULL"},{"type":"character","attributes":{},"value":["tutorial-diagnostics.js"]},{"type":"NULL"},{"type":"NULL"},{"type":"NULL"},{"type":"character","attributes":{},"value":["learnr"]},{"type":"logical","attributes":{},"value":[true]},{"type":"character","attributes":{},"value":["0.10.1"]}]},{"type":"list","attributes":{"names":{"type":"character","attributes":{},"value":["name","version","src","meta","script","stylesheet","head","attachment","package","all_files","pkgVersion"]},"class":{"type":"character","attributes":{},"value":["html_dependency"]}},"value":[{"type":"character","attributes":{},"value":["ace"]},{"type":"character","attributes":{},"value":["1.2.6"]},{"type":"list","attributes":{"names":{"type":"character","attributes":{},"value":["file"]}},"value":[{"type":"character","attributes":{},"value":["lib/ace"]}]},{"type":"NULL"},{"type":"character","attributes":{},"value":["ace.js"]},{"type":"NULL"},{"type":"NULL"},{"type":"NULL"},{"type":"character","attributes":{},"value":["learnr"]},{"type":"logical","attributes":{},"value":[true]},{"type":"character","attributes":{},"value":["0.10.1"]}]},{"type":"list","attributes":{"names":{"type":"character","attributes":{},"value":["name","version","src","meta","script","stylesheet","head","attachment","package","all_files","pkgVersion"]},"class":{"type":"character","attributes":{},"value":["html_dependency"]}},"value":[{"type":"character","attributes":{},"value":["clipboardjs"]},{"type":"character","attributes":{},"value":["1.5.15"]},{"type":"list","attributes":{"names":{"type":"character","attributes":{},"value":["file"]}},"value":[{"type":"character","attributes":{},"value":["lib/clipboardjs"]}]},{"type":"NULL"},{"type":"character","attributes":{},"value":["clipboard.min.js"]},{"type":"NULL"},{"type":"NULL"},{"type":"NULL"},{"type":"character","attributes":{},"value":["learnr"]},{"type":"logical","attributes":{},"value":[true]},{"type":"character","attributes":{},"value":["0.10.1"]}]},{"type":"list","attributes":{"names":{"type":"character","attributes":{},"value":["name","version","src","meta","script","stylesheet","head","attachment","package","all_files","pkgVersion"]},"class":{"type":"character","attributes":{},"value":["html_dependency"]}},"value":[{"type":"character","attributes":{},"value":["ace"]},{"type":"character","attributes":{},"value":["1.2.6"]},{"type":"list","attributes":{"names":{"type":"character","attributes":{},"value":["file"]}},"value":[{"type":"character","attributes":{},"value":["lib/ace"]}]},{"type":"NULL"},{"type":"character","attributes":{},"value":["ace.js"]},{"type":"NULL"},{"type":"NULL"},{"type":"NULL"},{"type":"character","attributes":{},"value":["learnr"]},{"type":"logical","attributes":{},"value":[true]},{"type":"character","attributes":{},"value":["0.10.1"]}]},{"type":"list","attributes":{"names":{"type":"character","attributes":{},"value":["name","version","src","meta","script","stylesheet","head","attachment","package","all_files","pkgVersion"]},"class":{"type":"character","attributes":{},"value":["html_dependency"]}},"value":[{"type":"character","attributes":{},"value":["clipboardjs"]},{"type":"character","attributes":{},"value":["1.5.15"]},{"type":"list","attributes":{"names":{"type":"character","attributes":{},"value":["file"]}},"value":[{"type":"character","attributes":{},"value":["lib/clipboardjs"]}]},{"type":"NULL"},{"type":"character","attributes":{},"value":["clipboard.min.js"]},{"type":"NULL"},{"type":"NULL"},{"type":"NULL"},{"type":"character","attributes":{},"value":["learnr"]},{"type":"logical","attributes":{},"value":[true]},{"type":"character","attributes":{},"value":["0.10.1"]}]},{"type":"list","attributes":{"names":{"type":"character","attributes":{},"value":["name","version","src","meta","script","stylesheet","head","attachment","package","all_files","pkgVersion"]},"class":{"type":"character","attributes":{},"value":["html_dependency"]}},"value":[{"type":"character","attributes":{},"value":["ace"]},{"type":"character","attributes":{},"value":["1.2.6"]},{"type":"list","attributes":{"names":{"type":"character","attributes":{},"value":["file"]}},"value":[{"type":"character","attributes":{},"value":["lib/ace"]}]},{"type":"NULL"},{"type":"character","attributes":{},"value":["ace.js"]},{"type":"NULL"},{"type":"NULL"},{"type":"NULL"},{"type":"character","attributes":{},"value":["learnr"]},{"type":"logical","attributes":{},"value":[true]},{"type":"character","attributes":{},"value":["0.10.1"]}]},{"type":"list","attributes":{"names":{"type":"character","attributes":{},"value":["name","version","src","meta","script","stylesheet","head","attachment","package","all_files","pkgVersion"]},"class":{"type":"character","attributes":{},"value":["html_dependency"]}},"value":[{"type":"character","attributes":{},"value":["clipboardjs"]},{"type":"character","attributes":{},"value":["1.5.15"]},{"type":"list","attributes":{"names":{"type":"character","attributes":{},"value":["file"]}},"value":[{"type":"character","attributes":{},"value":["lib/clipboardjs"]}]},{"type":"NULL"},{"type":"character","attributes":{},"value":["clipboard.min.js"]},{"type":"NULL"},{"type":"NULL"},{"type":"NULL"},{"type":"character","attributes":{},"value":["learnr"]},{"type":"logical","attributes":{},"value":[true]},{"type":"character","attributes":{},"value":["0.10.1"]}]},{"type":"list","attributes":{"names":{"type":"character","attributes":{},"value":["name","version","src","meta","script","stylesheet","head","attachment","package","all_files","pkgVersion"]},"class":{"type":"character","attributes":{},"value":["html_dependency"]}},"value":[{"type":"character","attributes":{},"value":["ace"]},{"type":"character","attributes":{},"value":["1.2.6"]},{"type":"list","attributes":{"names":{"type":"character","attributes":{},"value":["file"]}},"value":[{"type":"character","attributes":{},"value":["lib/ace"]}]},{"type":"NULL"},{"type":"character","attributes":{},"value":["ace.js"]},{"type":"NULL"},{"type":"NULL"},{"type":"NULL"},{"type":"character","attributes":{},"value":["learnr"]},{"type":"logical","attributes":{},"value":[true]},{"type":"character","attributes":{},"value":["0.10.1"]}]},{"type":"list","attributes":{"names":{"type":"character","attributes":{},"value":["name","version","src","meta","script","stylesheet","head","attachment","package","all_files","pkgVersion"]},"class":{"type":"character","attributes":{},"value":["html_dependency"]}},"value":[{"type":"character","attributes":{},"value":["clipboardjs"]},{"type":"character","attributes":{},"value":["1.5.15"]},{"type":"list","attributes":{"names":{"type":"character","attributes":{},"value":["file"]}},"value":[{"type":"character","attributes":{},"value":["lib/clipboardjs"]}]},{"type":"NULL"},{"type":"character","attributes":{},"value":["clipboard.min.js"]},{"type":"NULL"},{"type":"NULL"},{"type":"NULL"},{"type":"character","attributes":{},"value":["learnr"]},{"type":"logical","attributes":{},"value":[true]},{"type":"character","attributes":{},"value":["0.10.1"]}]},{"type":"list","attributes":{"names":{"type":"character","attributes":{},"value":["name","version","src","meta","script","stylesheet","head","attachment","package","all_files","pkgVersion"]},"class":{"type":"character","attributes":{},"value":["html_dependency"]}},"value":[{"type":"character","attributes":{},"value":["ace"]},{"type":"character","attributes":{},"value":["1.2.6"]},{"type":"list","attributes":{"names":{"type":"character","attributes":{},"value":["file"]}},"value":[{"type":"character","attributes":{},"value":["lib/ace"]}]},{"type":"NULL"},{"type":"character","attributes":{},"value":["ace.js"]},{"type":"NULL"},{"type":"NULL"},{"type":"NULL"},{"type":"character","attributes":{},"value":["learnr"]},{"type":"logical","attributes":{},"value":[true]},{"type":"character","attributes":{},"value":["0.10.1"]}]},{"type":"list","attributes":{"names":{"type":"character","attributes":{},"value":["name","version","src","meta","script","stylesheet","head","attachment","package","all_files","pkgVersion"]},"class":{"type":"character","attributes":{},"value":["html_dependency"]}},"value":[{"type":"character","attributes":{},"value":["clipboardjs"]},{"type":"character","attributes":{},"value":["1.5.15"]},{"type":"list","attributes":{"names":{"type":"character","attributes":{},"value":["file"]}},"value":[{"type":"character","attributes":{},"value":["lib/clipboardjs"]}]},{"type":"NULL"},{"type":"character","attributes":{},"value":["clipboard.min.js"]},{"type":"NULL"},{"type":"NULL"},{"type":"NULL"},{"type":"character","attributes":{},"value":["learnr"]},{"type":"logical","attributes":{},"value":[true]},{"type":"character","attributes":{},"value":["0.10.1"]}]},{"type":"list","attributes":{"names":{"type":"character","attributes":{},"value":["name","version","src","meta","script","stylesheet","head","attachment","package","all_files","pkgVersion"]},"class":{"type":"character","attributes":{},"value":["html_dependency"]}},"value":[{"type":"character","attributes":{},"value":["ace"]},{"type":"character","attributes":{},"value":["1.2.6"]},{"type":"list","attributes":{"names":{"type":"character","attributes":{},"value":["file"]}},"value":[{"type":"character","attributes":{},"value":["lib/ace"]}]},{"type":"NULL"},{"type":"character","attributes":{},"value":["ace.js"]},{"type":"NULL"},{"type":"NULL"},{"type":"NULL"},{"type":"character","attributes":{},"value":["learnr"]},{"type":"logical","attributes":{},"value":[true]},{"type":"character","attributes":{},"value":["0.10.1"]}]},{"type":"list","attributes":{"names":{"type":"character","attributes":{},"value":["name","version","src","meta","script","stylesheet","head","attachment","package","all_files","pkgVersion"]},"class":{"type":"character","attributes":{},"value":["html_dependency"]}},"value":[{"type":"character","attributes":{},"value":["clipboardjs"]},{"type":"character","attributes":{},"value":["1.5.15"]},{"type":"list","attributes":{"names":{"type":"character","attributes":{},"value":["file"]}},"value":[{"type":"character","attributes":{},"value":["lib/clipboardjs"]}]},{"type":"NULL"},{"type":"character","attributes":{},"value":["clipboard.min.js"]},{"type":"NULL"},{"type":"NULL"},{"type":"NULL"},{"type":"character","attributes":{},"value":["learnr"]},{"type":"logical","attributes":{},"value":[true]},{"type":"character","attributes":{},"value":["0.10.1"]}]},{"type":"list","attributes":{"names":{"type":"character","attributes":{},"value":["name","version","src","meta","script","stylesheet","head","attachment","package","all_files","pkgVersion"]},"class":{"type":"character","attributes":{},"value":["html_dependency"]}},"value":[{"type":"character","attributes":{},"value":["ace"]},{"type":"character","attributes":{},"value":["1.2.6"]},{"type":"list","attributes":{"names":{"type":"character","attributes":{},"value":["file"]}},"value":[{"type":"character","attributes":{},"value":["lib/ace"]}]},{"type":"NULL"},{"type":"character","attributes":{},"value":["ace.js"]},{"type":"NULL"},{"type":"NULL"},{"type":"NULL"},{"type":"character","attributes":{},"value":["learnr"]},{"type":"logical","attributes":{},"value":[true]},{"type":"character","attributes":{},"value":["0.10.1"]}]},{"type":"list","attributes":{"names":{"type":"character","attributes":{},"value":["name","version","src","meta","script","stylesheet","head","attachment","package","all_files","pkgVersion"]},"class":{"type":"character","attributes":{},"value":["html_dependency"]}},"value":[{"type":"character","attributes":{},"value":["clipboardjs"]},{"type":"character","attributes":{},"value":["1.5.15"]},{"type":"list","attributes":{"names":{"type":"character","attributes":{},"value":["file"]}},"value":[{"type":"character","attributes":{},"value":["lib/clipboardjs"]}]},{"type":"NULL"},{"type":"character","attributes":{},"value":["clipboard.min.js"]},{"type":"NULL"},{"type":"NULL"},{"type":"NULL"},{"type":"character","attributes":{},"value":["learnr"]},{"type":"logical","attributes":{},"value":[true]},{"type":"character","attributes":{},"value":["0.10.1"]}]},{"type":"list","attributes":{"names":{"type":"character","attributes":{},"value":["name","version","src","meta","script","stylesheet","head","attachment","package","all_files","pkgVersion"]},"class":{"type":"character","attributes":{},"value":["html_dependency"]}},"value":[{"type":"character","attributes":{},"value":["ace"]},{"type":"character","attributes":{},"value":["1.2.6"]},{"type":"list","attributes":{"names":{"type":"character","attributes":{},"value":["file"]}},"value":[{"type":"character","attributes":{},"value":["lib/ace"]}]},{"type":"NULL"},{"type":"character","attributes":{},"value":["ace.js"]},{"type":"NULL"},{"type":"NULL"},{"type":"NULL"},{"type":"character","attributes":{},"value":["learnr"]},{"type":"logical","attributes":{},"value":[true]},{"type":"character","attributes":{},"value":["0.10.1"]}]},{"type":"list","attributes":{"names":{"type":"character","attributes":{},"value":["name","version","src","meta","script","stylesheet","head","attachment","package","all_files","pkgVersion"]},"class":{"type":"character","attributes":{},"value":["html_dependency"]}},"value":[{"type":"character","attributes":{},"value":["clipboardjs"]},{"type":"character","attributes":{},"value":["1.5.15"]},{"type":"list","attributes":{"names":{"type":"character","attributes":{},"value":["file"]}},"value":[{"type":"character","attributes":{},"value":["lib/clipboardjs"]}]},{"type":"NULL"},{"type":"character","attributes":{},"value":["clipboard.min.js"]},{"type":"NULL"},{"type":"NULL"},{"type":"NULL"},{"type":"character","attributes":{},"value":["learnr"]},{"type":"logical","attributes":{},"value":[true]},{"type":"character","attributes":{},"value":["0.10.1"]}]},{"type":"list","attributes":{"names":{"type":"character","attributes":{},"value":["name","version","src","meta","script","stylesheet","head","attachment","package","all_files","pkgVersion"]},"class":{"type":"character","attributes":{},"value":["html_dependency"]}},"value":[{"type":"character","attributes":{},"value":["ace"]},{"type":"character","attributes":{},"value":["1.2.6"]},{"type":"list","attributes":{"names":{"type":"character","attributes":{},"value":["file"]}},"value":[{"type":"character","attributes":{},"value":["lib/ace"]}]},{"type":"NULL"},{"type":"character","attributes":{},"value":["ace.js"]},{"type":"NULL"},{"type":"NULL"},{"type":"NULL"},{"type":"character","attributes":{},"value":["learnr"]},{"type":"logical","attributes":{},"value":[true]},{"type":"character","attributes":{},"value":["0.10.1"]}]},{"type":"list","attributes":{"names":{"type":"character","attributes":{},"value":["name","version","src","meta","script","stylesheet","head","attachment","package","all_files","pkgVersion"]},"class":{"type":"character","attributes":{},"value":["html_dependency"]}},"value":[{"type":"character","attributes":{},"value":["clipboardjs"]},{"type":"character","attributes":{},"value":["1.5.15"]},{"type":"list","attributes":{"names":{"type":"character","attributes":{},"value":["file"]}},"value":[{"type":"character","attributes":{},"value":["lib/clipboardjs"]}]},{"type":"NULL"},{"type":"character","attributes":{},"value":["clipboard.min.js"]},{"type":"NULL"},{"type":"NULL"},{"type":"NULL"},{"type":"character","attributes":{},"value":["learnr"]},{"type":"logical","attributes":{},"value":[true]},{"type":"character","attributes":{},"value":["0.10.1"]}]},{"type":"list","attributes":{"names":{"type":"character","attributes":{},"value":["name","version","src","meta","script","stylesheet","head","attachment","package","all_files","pkgVersion"]},"class":{"type":"character","attributes":{},"value":["html_dependency"]}},"value":[{"type":"character","attributes":{},"value":["ace"]},{"type":"character","attributes":{},"value":["1.2.6"]},{"type":"list","attributes":{"names":{"type":"character","attributes":{},"value":["file"]}},"value":[{"type":"character","attributes":{},"value":["lib/ace"]}]},{"type":"NULL"},{"type":"character","attributes":{},"value":["ace.js"]},{"type":"NULL"},{"type":"NULL"},{"type":"NULL"},{"type":"character","attributes":{},"value":["learnr"]},{"type":"logical","attributes":{},"value":[true]},{"type":"character","attributes":{},"value":["0.10.1"]}]},{"type":"list","attributes":{"names":{"type":"character","attributes":{},"value":["name","version","src","meta","script","stylesheet","head","attachment","package","all_files","pkgVersion"]},"class":{"type":"character","attributes":{},"value":["html_dependency"]}},"value":[{"type":"character","attributes":{},"value":["clipboardjs"]},{"type":"character","attributes":{},"value":["1.5.15"]},{"type":"list","attributes":{"names":{"type":"character","attributes":{},"value":["file"]}},"value":[{"type":"character","attributes":{},"value":["lib/clipboardjs"]}]},{"type":"NULL"},{"type":"character","attributes":{},"value":["clipboard.min.js"]},{"type":"NULL"},{"type":"NULL"},{"type":"NULL"},{"type":"character","attributes":{},"value":["learnr"]},{"type":"logical","attributes":{},"value":[true]},{"type":"character","attributes":{},"value":["0.10.1"]}]},{"type":"list","attributes":{"names":{"type":"character","attributes":{},"value":["name","version","src","meta","script","stylesheet","head","attachment","package","all_files","pkgVersion"]},"class":{"type":"character","attributes":{},"value":["html_dependency"]}},"value":[{"type":"character","attributes":{},"value":["ace"]},{"type":"character","attributes":{},"value":["1.2.6"]},{"type":"list","attributes":{"names":{"type":"character","attributes":{},"value":["file"]}},"value":[{"type":"character","attributes":{},"value":["lib/ace"]}]},{"type":"NULL"},{"type":"character","attributes":{},"value":["ace.js"]},{"type":"NULL"},{"type":"NULL"},{"type":"NULL"},{"type":"character","attributes":{},"value":["learnr"]},{"type":"logical","attributes":{},"value":[true]},{"type":"character","attributes":{},"value":["0.10.1"]}]},{"type":"list","attributes":{"names":{"type":"character","attributes":{},"value":["name","version","src","meta","script","stylesheet","head","attachment","package","all_files","pkgVersion"]},"class":{"type":"character","attributes":{},"value":["html_dependency"]}},"value":[{"type":"character","attributes":{},"value":["clipboardjs"]},{"type":"character","attributes":{},"value":["1.5.15"]},{"type":"list","attributes":{"names":{"type":"character","attributes":{},"value":["file"]}},"value":[{"type":"character","attributes":{},"value":["lib/clipboardjs"]}]},{"type":"NULL"},{"type":"character","attributes":{},"value":["clipboard.min.js"]},{"type":"NULL"},{"type":"NULL"},{"type":"NULL"},{"type":"character","attributes":{},"value":["learnr"]},{"type":"logical","attributes":{},"value":[true]},{"type":"character","attributes":{},"value":["0.10.1"]}]},{"type":"list","attributes":{"names":{"type":"character","attributes":{},"value":["name","version","src","meta","script","stylesheet","head","attachment","package","all_files","pkgVersion"]},"class":{"type":"character","attributes":{},"value":["html_dependency"]}},"value":[{"type":"character","attributes":{},"value":["ace"]},{"type":"character","attributes":{},"value":["1.2.6"]},{"type":"list","attributes":{"names":{"type":"character","attributes":{},"value":["file"]}},"value":[{"type":"character","attributes":{},"value":["lib/ace"]}]},{"type":"NULL"},{"type":"character","attributes":{},"value":["ace.js"]},{"type":"NULL"},{"type":"NULL"},{"type":"NULL"},{"type":"character","attributes":{},"value":["learnr"]},{"type":"logical","attributes":{},"value":[true]},{"type":"character","attributes":{},"value":["0.10.1"]}]},{"type":"list","attributes":{"names":{"type":"character","attributes":{},"value":["name","version","src","meta","script","stylesheet","head","attachment","package","all_files","pkgVersion"]},"class":{"type":"character","attributes":{},"value":["html_dependency"]}},"value":[{"type":"character","attributes":{},"value":["clipboardjs"]},{"type":"character","attributes":{},"value":["1.5.15"]},{"type":"list","attributes":{"names":{"type":"character","attributes":{},"value":["file"]}},"value":[{"type":"character","attributes":{},"value":["lib/clipboardjs"]}]},{"type":"NULL"},{"type":"character","attributes":{},"value":["clipboard.min.js"]},{"type":"NULL"},{"type":"NULL"},{"type":"NULL"},{"type":"character","attributes":{},"value":["learnr"]},{"type":"logical","attributes":{},"value":[true]},{"type":"character","attributes":{},"value":["0.10.1"]}]},{"type":"list","attributes":{"names":{"type":"character","attributes":{},"value":["name","version","src","meta","script","stylesheet","head","attachment","package","all_files","pkgVersion"]},"class":{"type":"character","attributes":{},"value":["html_dependency"]}},"value":[{"type":"character","attributes":{},"value":["ace"]},{"type":"character","attributes":{},"value":["1.2.6"]},{"type":"list","attributes":{"names":{"type":"character","attributes":{},"value":["file"]}},"value":[{"type":"character","attributes":{},"value":["lib/ace"]}]},{"type":"NULL"},{"type":"character","attributes":{},"value":["ace.js"]},{"type":"NULL"},{"type":"NULL"},{"type":"NULL"},{"type":"character","attributes":{},"value":["learnr"]},{"type":"logical","attributes":{},"value":[true]},{"type":"character","attributes":{},"value":["0.10.1"]}]},{"type":"list","attributes":{"names":{"type":"character","attributes":{},"value":["name","version","src","meta","script","stylesheet","head","attachment","package","all_files","pkgVersion"]},"class":{"type":"character","attributes":{},"value":["html_dependency"]}},"value":[{"type":"character","attributes":{},"value":["clipboardjs"]},{"type":"character","attributes":{},"value":["1.5.15"]},{"type":"list","attributes":{"names":{"type":"character","attributes":{},"value":["file"]}},"value":[{"type":"character","attributes":{},"value":["lib/clipboardjs"]}]},{"type":"NULL"},{"type":"character","attributes":{},"value":["clipboard.min.js"]},{"type":"NULL"},{"type":"NULL"},{"type":"NULL"},{"type":"character","attributes":{},"value":["learnr"]},{"type":"logical","attributes":{},"value":[true]},{"type":"character","attributes":{},"value":["0.10.1"]}]},{"type":"list","attributes":{"names":{"type":"character","attributes":{},"value":["name","version","src","meta","script","stylesheet","head","attachment","package","all_files","pkgVersion"]},"class":{"type":"character","attributes":{},"value":["html_dependency"]}},"value":[{"type":"character","attributes":{},"value":["ace"]},{"type":"character","attributes":{},"value":["1.2.6"]},{"type":"list","attributes":{"names":{"type":"character","attributes":{},"value":["file"]}},"value":[{"type":"character","attributes":{},"value":["lib/ace"]}]},{"type":"NULL"},{"type":"character","attributes":{},"value":["ace.js"]},{"type":"NULL"},{"type":"NULL"},{"type":"NULL"},{"type":"character","attributes":{},"value":["learnr"]},{"type":"logical","attributes":{},"value":[true]},{"type":"character","attributes":{},"value":["0.10.1"]}]},{"type":"list","attributes":{"names":{"type":"character","attributes":{},"value":["name","version","src","meta","script","stylesheet","head","attachment","package","all_files","pkgVersion"]},"class":{"type":"character","attributes":{},"value":["html_dependency"]}},"value":[{"type":"character","attributes":{},"value":["clipboardjs"]},{"type":"character","attributes":{},"value":["1.5.15"]},{"type":"list","attributes":{"names":{"type":"character","attributes":{},"value":["file"]}},"value":[{"type":"character","attributes":{},"value":["lib/clipboardjs"]}]},{"type":"NULL"},{"type":"character","attributes":{},"value":["clipboard.min.js"]},{"type":"NULL"},{"type":"NULL"},{"type":"NULL"},{"type":"character","attributes":{},"value":["learnr"]},{"type":"logical","attributes":{},"value":[true]},{"type":"character","attributes":{},"value":["0.10.1"]}]},{"type":"list","attributes":{"names":{"type":"character","attributes":{},"value":["name","version","src","meta","script","stylesheet","head","attachment","package","all_files","pkgVersion"]},"class":{"type":"character","attributes":{},"value":["html_dependency"]}},"value":[{"type":"character","attributes":{},"value":["ace"]},{"type":"character","attributes":{},"value":["1.2.6"]},{"type":"list","attributes":{"names":{"type":"character","attributes":{},"value":["file"]}},"value":[{"type":"character","attributes":{},"value":["lib/ace"]}]},{"type":"NULL"},{"type":"character","attributes":{},"value":["ace.js"]},{"type":"NULL"},{"type":"NULL"},{"type":"NULL"},{"type":"character","attributes":{},"value":["learnr"]},{"type":"logical","attributes":{},"value":[true]},{"type":"character","attributes":{},"value":["0.10.1"]}]},{"type":"list","attributes":{"names":{"type":"character","attributes":{},"value":["name","version","src","meta","script","stylesheet","head","attachment","package","all_files","pkgVersion"]},"class":{"type":"character","attributes":{},"value":["html_dependency"]}},"value":[{"type":"character","attributes":{},"value":["clipboardjs"]},{"type":"character","attributes":{},"value":["1.5.15"]},{"type":"list","attributes":{"names":{"type":"character","attributes":{},"value":["file"]}},"value":[{"type":"character","attributes":{},"value":["lib/clipboardjs"]}]},{"type":"NULL"},{"type":"character","attributes":{},"value":["clipboard.min.js"]},{"type":"NULL"},{"type":"NULL"},{"type":"NULL"},{"type":"character","attributes":{},"value":["learnr"]},{"type":"logical","attributes":{},"value":[true]},{"type":"character","attributes":{},"value":["0.10.1"]}]},{"type":"list","attributes":{"names":{"type":"character","attributes":{},"value":["name","version","src","meta","script","stylesheet","head","attachment","package","all_files","pkgVersion"]},"class":{"type":"character","attributes":{},"value":["html_dependency"]}},"value":[{"type":"character","attributes":{},"value":["ace"]},{"type":"character","attributes":{},"value":["1.2.6"]},{"type":"list","attributes":{"names":{"type":"character","attributes":{},"value":["file"]}},"value":[{"type":"character","attributes":{},"value":["lib/ace"]}]},{"type":"NULL"},{"type":"character","attributes":{},"value":["ace.js"]},{"type":"NULL"},{"type":"NULL"},{"type":"NULL"},{"type":"character","attributes":{},"value":["learnr"]},{"type":"logical","attributes":{},"value":[true]},{"type":"character","attributes":{},"value":["0.10.1"]}]},{"type":"list","attributes":{"names":{"type":"character","attributes":{},"value":["name","version","src","meta","script","stylesheet","head","attachment","package","all_files","pkgVersion"]},"class":{"type":"character","attributes":{},"value":["html_dependency"]}},"value":[{"type":"character","attributes":{},"value":["clipboardjs"]},{"type":"character","attributes":{},"value":["1.5.15"]},{"type":"list","attributes":{"names":{"type":"character","attributes":{},"value":["file"]}},"value":[{"type":"character","attributes":{},"value":["lib/clipboardjs"]}]},{"type":"NULL"},{"type":"character","attributes":{},"value":["clipboard.min.js"]},{"type":"NULL"},{"type":"NULL"},{"type":"NULL"},{"type":"character","attributes":{},"value":["learnr"]},{"type":"logical","attributes":{},"value":[true]},{"type":"character","attributes":{},"value":["0.10.1"]}]},{"type":"list","attributes":{"names":{"type":"character","attributes":{},"value":["name","version","src","meta","script","stylesheet","head","attachment","package","all_files","pkgVersion"]},"class":{"type":"character","attributes":{},"value":["html_dependency"]}},"value":[{"type":"character","attributes":{},"value":["ace"]},{"type":"character","attributes":{},"value":["1.2.6"]},{"type":"list","attributes":{"names":{"type":"character","attributes":{},"value":["file"]}},"value":[{"type":"character","attributes":{},"value":["lib/ace"]}]},{"type":"NULL"},{"type":"character","attributes":{},"value":["ace.js"]},{"type":"NULL"},{"type":"NULL"},{"type":"NULL"},{"type":"character","attributes":{},"value":["learnr"]},{"type":"logical","attributes":{},"value":[true]},{"type":"character","attributes":{},"value":["0.10.1"]}]},{"type":"list","attributes":{"names":{"type":"character","attributes":{},"value":["name","version","src","meta","script","stylesheet","head","attachment","package","all_files","pkgVersion"]},"class":{"type":"character","attributes":{},"value":["html_dependency"]}},"value":[{"type":"character","attributes":{},"value":["clipboardjs"]},{"type":"character","attributes":{},"value":["1.5.15"]},{"type":"list","attributes":{"names":{"type":"character","attributes":{},"value":["file"]}},"value":[{"type":"character","attributes":{},"value":["lib/clipboardjs"]}]},{"type":"NULL"},{"type":"character","attributes":{},"value":["clipboard.min.js"]},{"type":"NULL"},{"type":"NULL"},{"type":"NULL"},{"type":"character","attributes":{},"value":["learnr"]},{"type":"logical","attributes":{},"value":[true]},{"type":"character","attributes":{},"value":["0.10.1"]}]},{"type":"list","attributes":{"names":{"type":"character","attributes":{},"value":["name","version","src","meta","script","stylesheet","head","attachment","package","all_files","pkgVersion"]},"class":{"type":"character","attributes":{},"value":["html_dependency"]}},"value":[{"type":"character","attributes":{},"value":["ace"]},{"type":"character","attributes":{},"value":["1.2.6"]},{"type":"list","attributes":{"names":{"type":"character","attributes":{},"value":["file"]}},"value":[{"type":"character","attributes":{},"value":["lib/ace"]}]},{"type":"NULL"},{"type":"character","attributes":{},"value":["ace.js"]},{"type":"NULL"},{"type":"NULL"},{"type":"NULL"},{"type":"character","attributes":{},"value":["learnr"]},{"type":"logical","attributes":{},"value":[true]},{"type":"character","attributes":{},"value":["0.10.1"]}]},{"type":"list","attributes":{"names":{"type":"character","attributes":{},"value":["name","version","src","meta","script","stylesheet","head","attachment","package","all_files","pkgVersion"]},"class":{"type":"character","attributes":{},"value":["html_dependency"]}},"value":[{"type":"character","attributes":{},"value":["clipboardjs"]},{"type":"character","attributes":{},"value":["1.5.15"]},{"type":"list","attributes":{"names":{"type":"character","attributes":{},"value":["file"]}},"value":[{"type":"character","attributes":{},"value":["lib/clipboardjs"]}]},{"type":"NULL"},{"type":"character","attributes":{},"value":["clipboard.min.js"]},{"type":"NULL"},{"type":"NULL"},{"type":"NULL"},{"type":"character","attributes":{},"value":["learnr"]},{"type":"logical","attributes":{},"value":[true]},{"type":"character","attributes":{},"value":["0.10.1"]}]},{"type":"list","attributes":{"names":{"type":"character","attributes":{},"value":["name","version","src","meta","script","stylesheet","head","attachment","package","all_files","pkgVersion"]},"class":{"type":"character","attributes":{},"value":["html_dependency"]}},"value":[{"type":"character","attributes":{},"value":["ace"]},{"type":"character","attributes":{},"value":["1.2.6"]},{"type":"list","attributes":{"names":{"type":"character","attributes":{},"value":["file"]}},"value":[{"type":"character","attributes":{},"value":["lib/ace"]}]},{"type":"NULL"},{"type":"character","attributes":{},"value":["ace.js"]},{"type":"NULL"},{"type":"NULL"},{"type":"NULL"},{"type":"character","attributes":{},"value":["learnr"]},{"type":"logical","attributes":{},"value":[true]},{"type":"character","attributes":{},"value":["0.10.1"]}]},{"type":"list","attributes":{"names":{"type":"character","attributes":{},"value":["name","version","src","meta","script","stylesheet","head","attachment","package","all_files","pkgVersion"]},"class":{"type":"character","attributes":{},"value":["html_dependency"]}},"value":[{"type":"character","attributes":{},"value":["clipboardjs"]},{"type":"character","attributes":{},"value":["1.5.15"]},{"type":"list","attributes":{"names":{"type":"character","attributes":{},"value":["file"]}},"value":[{"type":"character","attributes":{},"value":["lib/clipboardjs"]}]},{"type":"NULL"},{"type":"character","attributes":{},"value":["clipboard.min.js"]},{"type":"NULL"},{"type":"NULL"},{"type":"NULL"},{"type":"character","attributes":{},"value":["learnr"]},{"type":"logical","attributes":{},"value":[true]},{"type":"character","attributes":{},"value":["0.10.1"]}]},{"type":"list","attributes":{"names":{"type":"character","attributes":{},"value":["name","version","src","meta","script","stylesheet","head","attachment","package","all_files","pkgVersion"]},"class":{"type":"character","attributes":{},"value":["html_dependency"]}},"value":[{"type":"character","attributes":{},"value":["ace"]},{"type":"character","attributes":{},"value":["1.2.6"]},{"type":"list","attributes":{"names":{"type":"character","attributes":{},"value":["file"]}},"value":[{"type":"character","attributes":{},"value":["lib/ace"]}]},{"type":"NULL"},{"type":"character","attributes":{},"value":["ace.js"]},{"type":"NULL"},{"type":"NULL"},{"type":"NULL"},{"type":"character","attributes":{},"value":["learnr"]},{"type":"logical","attributes":{},"value":[true]},{"type":"character","attributes":{},"value":["0.10.1"]}]},{"type":"list","attributes":{"names":{"type":"character","attributes":{},"value":["name","version","src","meta","script","stylesheet","head","attachment","package","all_files","pkgVersion"]},"class":{"type":"character","attributes":{},"value":["html_dependency"]}},"value":[{"type":"character","attributes":{},"value":["clipboardjs"]},{"type":"character","attributes":{},"value":["1.5.15"]},{"type":"list","attributes":{"names":{"type":"character","attributes":{},"value":["file"]}},"value":[{"type":"character","attributes":{},"value":["lib/clipboardjs"]}]},{"type":"NULL"},{"type":"character","attributes":{},"value":["clipboard.min.js"]},{"type":"NULL"},{"type":"NULL"},{"type":"NULL"},{"type":"character","attributes":{},"value":["learnr"]},{"type":"logical","attributes":{},"value":[true]},{"type":"character","attributes":{},"value":["0.10.1"]}]},{"type":"list","attributes":{"names":{"type":"character","attributes":{},"value":["name","version","src","meta","script","stylesheet","head","attachment","package","all_files","pkgVersion"]},"class":{"type":"character","attributes":{},"value":["html_dependency"]}},"value":[{"type":"character","attributes":{},"value":["ace"]},{"type":"character","attributes":{},"value":["1.2.6"]},{"type":"list","attributes":{"names":{"type":"character","attributes":{},"value":["file"]}},"value":[{"type":"character","attributes":{},"value":["lib/ace"]}]},{"type":"NULL"},{"type":"character","attributes":{},"value":["ace.js"]},{"type":"NULL"},{"type":"NULL"},{"type":"NULL"},{"type":"character","attributes":{},"value":["learnr"]},{"type":"logical","attributes":{},"value":[true]},{"type":"character","attributes":{},"value":["0.10.1"]}]},{"type":"list","attributes":{"names":{"type":"character","attributes":{},"value":["name","version","src","meta","script","stylesheet","head","attachment","package","all_files","pkgVersion"]},"class":{"type":"character","attributes":{},"value":["html_dependency"]}},"value":[{"type":"character","attributes":{},"value":["clipboardjs"]},{"type":"character","attributes":{},"value":["1.5.15"]},{"type":"list","attributes":{"names":{"type":"character","attributes":{},"value":["file"]}},"value":[{"type":"character","attributes":{},"value":["lib/clipboardjs"]}]},{"type":"NULL"},{"type":"character","attributes":{},"value":["clipboard.min.js"]},{"type":"NULL"},{"type":"NULL"},{"type":"NULL"},{"type":"character","attributes":{},"value":["learnr"]},{"type":"logical","attributes":{},"value":[true]},{"type":"character","attributes":{},"value":["0.10.1"]}]}]}
+</script>
+<!--/html_preserve-->
+<!--html_preserve-->
+<script type="application/shiny-prerendered" data-context="execution_dependencies">
+{"type":"list","attributes":{"names":{"type":"character","attributes":{},"value":["packages"]}},"value":[{"type":"list","attributes":{"names":{"type":"character","attributes":{},"value":["packages","version"]},"class":{"type":"character","attributes":{},"value":["data.frame"]},"row.names":{"type":"integer","attributes":{},"value":[1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,36,37,38,39,40,41,42]}},"value":[{"type":"character","attributes":{},"value":["backports","base","bslib","checkmate","compiler","datasets","digest","ellipsis","evaluate","fastmap","graphics","grDevices","htmltools","htmlwidgets","httpuv","jquerylib","jsonlite","knitr","later","learnr","lifecycle","magrittr","markdown","methods","mime","promises","R6","Rcpp","rlang","rmarkdown","rprojroot","sass","shiny","stats","stringi","stringr","tools","utils","withr","xfun","xtable","yaml"]},{"type":"character","attributes":{},"value":["1.4.1","4.0.3","0.3.1","2.0.0","4.0.3","4.0.3","0.6.29","0.3.2","0.14","1.1.0","4.0.3","4.0.3","0.5.2","1.5.4","1.6.5","0.1.4","1.7.3","1.37","1.3.0","0.10.1","1.0.1","2.0.1","1.1","4.0.3","0.12","1.2.0.1","2.5.1","1.0.7","0.4.12","2.11","2.0.2","0.4.0","1.7.1","4.0.3","1.7.6","1.4.0","4.0.3","4.0.3","2.4.3","0.29","1.8-4","2.2.1"]}]}]}
+</script>
+<!--/html_preserve-->
+</div>
+
+</div> <!-- topics -->
+
+<div class="topicsContainer">
+<div class="topicsPositioner">
+<div class="band">
+<div class="bandContent topicsListContainer">
+
+<!-- begin doc-metadata -->
+<div id="doc-metadata">
+<h2 class="title toc-ignore" style="display:none;">HDAT9600 Introduction to Matrix Algebra</h2>
+</div>
+<!-- end doc-metadata -->
+
+</div> <!-- bandContent.topicsListContainer -->
+</div> <!-- band -->
+</div> <!-- topicsPositioner -->
+</div> <!-- topicsContainer -->
+
+
+</div> <!-- bandContent page -->
+</div> <!-- pageContent band -->
+
+
+
+
+<script>
+// add bootstrap table styles to pandoc tables
+function bootstrapStylePandocTables() {
+  $('tr.header').parent('thead').parent('table').addClass('table table-condensed');
+}
+$(document).ready(function () {
+  bootstrapStylePandocTables();
+});
+</script>
+
+
+<!-- dynamically load mathjax for compatibility with self-contained -->
+<script>
+  (function () {
+    var script = document.createElement("script");
+    script.type = "text/javascript";
+    script.src  = "https://mathjax.rstudio.com/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML";
+    document.getElementsByTagName("head")[0].appendChild(script);
+  })();
+</script>
+
+
+</body>
+
+</html>

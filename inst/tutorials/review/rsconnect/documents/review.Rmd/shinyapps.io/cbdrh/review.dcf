@@ -1,0 +1,13 @@
+name: review
+title: review
+username:
+account: cbdrh
+server: shinyapps.io
+hostUrl: https://api.shinyapps.io/v1
+appId: 5563243
+bundleId: 5534011
+url: https://cbdrh.shinyapps.io/review/
+when: 1643793441.71863
+lastSyncTime: 1643793441.71864
+asMultiple: FALSE
+asStatic: FALSE

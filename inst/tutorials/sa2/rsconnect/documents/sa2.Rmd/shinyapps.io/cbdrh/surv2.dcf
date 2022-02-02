@@ -1,0 +1,13 @@
+name: surv2
+title: surv2
+username:
+account: cbdrh
+server: shinyapps.io
+hostUrl: https://api.shinyapps.io/v1
+appId: 5563230
+bundleId: 5534000
+url: https://cbdrh.shinyapps.io/surv2/
+when: 1643793140.76245
+lastSyncTime: 1643793140.76246
+asMultiple: FALSE
+asStatic: FALSE
