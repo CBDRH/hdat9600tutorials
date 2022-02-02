@@ -7,6 +7,6 @@
 #' index()
 index <- function(){
 
-  learnr::available_tutorials(package = 'cbdrhintro')
+  learnr::available_tutorials(package = 'hdat9600tutorials')
 
 }
