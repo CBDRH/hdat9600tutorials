@@ -125,16 +125,7 @@ oldmort$fu_time &lt;- oldmort$exit - oldmort$enter
 oldmort$start &lt;- oldmort$birthdate + oldmort$enter
 oldmort$stop &lt;- oldmort$birthdate + oldmort$exit
 
-deaths &lt;- oldmort[oldmort$event == TRUE,]
-
-cox.sex &lt;- coxph( Surv(enter, exit, event) ~ sex, data = oldmort) 
-cox.mv1 &lt;- coxph( Surv(enter, exit, event) ~ sex + civ + region, data = oldmort) 
-oldmort$Y &lt;- Surv(oldmort$enter - 60, oldmort$exit - 60, oldmort$event)
-w.mv1 &lt;- phreg(Y ~ sex + civ + region, data = oldmort)
-g.mv1 &lt;- phreg(Y ~ sex + civ + region, data = oldmort, dist = &quot;gompertz&quot;)
-pch10.mv1 &lt;- phreg(Y ~ sex + civ + region, data = oldmort, dist = &quot;pch&quot;, cuts = c(10, 20, 30))
-pch5.mv1 &lt;- phreg(Y ~ sex + civ + region, data = oldmort, dist = &quot;pch&quot;, cuts = c(5, 10, 15, 20, 25, 30, 35))
-pch4.mv1 &lt;- phreg(Y ~ sex + civ + region, data = oldmort, dist = &quot;pch&quot;, cuts = c(4, 8, 12, 16, 20, 24, 28, 32, 36))</code></pre>
+deaths &lt;- oldmort[oldmort$event == TRUE,]</code></pre>
 </div>
 <div id="section-introduction" class="section level2">
 <h2>Introduction</h2>

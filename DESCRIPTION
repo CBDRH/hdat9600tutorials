@@ -1,7 +1,7 @@
 Package: hdat9600tutorials
 Type: Package
 Title: Health Data Analytics: Statistical Modelling I (HDAT9600)
-Version: 0.1.0
+Version: 0.1.1
 Author: as.person(c(
     "Tim Churches" <tim.churches@inghaminstitute.org.au> [aut]",
     "Maarit Laaksonen <m.laaksonen@unsw.edu.au> [aut]", 

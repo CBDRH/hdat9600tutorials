@@ -5,9 +5,9 @@ account: cbdrh
 server: shinyapps.io
 hostUrl: https://api.shinyapps.io/v1
 appId: 5563194
-bundleId: 5533966
+bundleId: 5560345
 url: https://cbdrh.shinyapps.io/glm2/
-when: 1643792403.37298
-lastSyncTime: 1643792403.373
+when: 1644401041.10963
+lastSyncTime: 1644401041.10964
 asMultiple: FALSE
 asStatic: FALSE

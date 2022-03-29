@@ -507,7 +507,7 @@ or
 
 Although the odds ratio only approximates the risk for rare outcomes, it is frequently (mis)interpreted as a risk ratio in cohort studies and RCTs, even when the outcome is common. This can lead to confusion and misleading interpretations.
 
-An example of this problem arose in a study of the effects of race and sex on physicians referrals for cardiac catheterization, published in [_The New England Journal of Medicine_](https://www.nejm.org/doi/full/10.1056/NEJM199902253400806). The study found that the odds of referal among Black pateints was only 60% that of White patients. The same odds ratio was found for Female versus Male patients. These results led to the following reporting in the New York Times:
+An example of this problem arose in a study of the effects of race and sex on physicians referrals for cardiac catheterization, published in [_The New England Journal of Medicine_](https://www.nejm.org/doi/full/10.1056/NEJM199902253400806). The study found that the odds of referal among Black patients was only 60% that of White patients. The same odds ratio was found for Female versus Male patients. These results led to the following reporting in the New York Times:
 
 > "Doctors are only 60% as likely to order cardiac catheterization for women and blacks as for men and whites" 
 
@@ -535,7 +535,7 @@ $$
 \text{Risk Ratio} = \frac{\text{Risk(Women)}}{\text{Risk(Men)}} = \frac{0.847}{0.906} = 0.93 
 $$
 
-Cleary, the statement that doctors are only 60% as likely to refer woman as men greatly exaggerates the actual finding that doctors were 7% less likley to refer woman then men (a similar result for Black versus White patients).   
+Clearly, the statement that doctors are only 60% as likely to refer woman as men greatly exaggerates the actual finding that doctors were 7% less likely to refer woman then men (a similar result for Black versus White patients).   
 
 You can read a full dissection of this study, and how the findings were reported, [here](https://www.nejm.org/doi/full/10.1056/NEJM199907223410411).
 
@@ -570,7 +570,7 @@ A key difference with log-binomial regression as compared to logistic regression
 To illustrate alternatives to logistic regression we will use an outcome that is definitely not rare: deaths in the Game of Thrones book series. These data were originally compiled by Erin Pierce and Ben Kahle, as described [here](http://allendowney.blogspot.com/2015/03/bayesian-survival-analysis-for-game-of.html). A subset of the data is provided with this tutorial in the dataset `deaths`. Five variables are included:
 
 1. Name (e.g. Asha Greyjoy)
-2. Allegiences (e.g. Lannister)
+2. Allegiances (e.g. Lannister)
 3. died (0=alive; 1=died)
 4. Gender (0=Female; 1=Male)
 5. Nobility (0=Commoner; 1=Noble)
